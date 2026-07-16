@@ -88,7 +88,11 @@ export class OutboxService {
     return { id: prior.id, replayed: true };
   }
 
-  async claim(workerId: string, limit = 20): Promise<OutboxMessage[]> {
+  async claim(
+    workerId: string,
+    limit = 20,
+    topic?: string,
+  ): Promise<OutboxMessage[]> {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw new RangeError('Outbox claim limit must be between 1 and 100');
     }
@@ -97,6 +101,7 @@ export class OutboxService {
         `WITH candidates AS (
            SELECT id FROM outbox_events
            WHERE status IN ('PENDING', 'FAILED') AND available_at <= now()
+             AND ($3::text IS NULL OR topic = $3)
              AND (locked_at IS NULL OR locked_at < now() - interval '5 minutes')
            ORDER BY available_at, created_at
            FOR UPDATE SKIP LOCKED
@@ -109,7 +114,7 @@ export class OutboxService {
          RETURNING event.id, event.topic, event.aggregate_type,
                    event.aggregate_id, event.idempotency_key, event.payload,
                    event.attempts`,
-        [workerId, limit],
+        [workerId, limit, topic ?? null],
       );
       return result.rows.map(mapMessage);
     });

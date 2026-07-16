@@ -1,17 +1,21 @@
 # Praxrail
 
 Praxrail is an autonomous engineering control plane that turns authenticated
-product intent into durable tasks and, in later phases, tested and independently
-reviewed pull requests.
+product intent into durable tasks and tested, independently reviewed pull
+requests while keeping merge manual.
 
-This initial foundation includes:
+The implementation includes:
 
 - strict task contracts and lifecycle policy;
 - PostgreSQL persistence, jobs, leases, locks, events, and idempotency;
 - authenticated Telegram intake and approval commands;
 - GitHub App authentication and signed webhook intake;
-- structured logs, metrics, traces, and cost accounting; and
-- fail-closed configuration with external integrations disabled by default.
+- structured logs, metrics, traces, and cost accounting;
+- isolated builder and reviewer adapters, deterministic verification,
+  reviewed-diff publishing, notifications, reports, and reconciliation;
+- encrypted backup/restore and attributable operator recovery tools; and
+- fail-closed configuration with merge, production deployment, and external
+  integrations disabled by default.
 
 ## Local Development
 
@@ -45,15 +49,17 @@ running service only receives `DATABASE_URL`. Lifecycle shortcuts are
 
 ## Security
 
-Do not enable Telegram or GitHub until their credentials, allowlists, and webhook
-secrets are configured. See [external integrations](docs/runbooks/external-integrations.md)
-and the [threat model](docs/security/threat-model.md).
+Do not enable Telegram, GitHub, or Codex until credentials, allowlists, sandbox
+resources, and review evidence are configured. See the
+[runbook index](docs/runbooks/README.md), [external integrations](docs/runbooks/external-integrations.md),
+[release security review](docs/security/release-review.md), and the
+[threat model](docs/security/threat-model.md).
 
 ## Architecture
 
 See [architecture](docs/architecture.md), [launch decisions](docs/decisions/0001-initial-launch-defaults.md),
 the [role permission matrix](docs/security/role-permissions.md), and the
-[foundation implementation status](docs/implementation-status.md).
+[implementation status](docs/implementation-status.md).
 
 Deployable observability definitions live in
 [`ops/prometheus/alerts.yml`](ops/prometheus/alerts.yml) and

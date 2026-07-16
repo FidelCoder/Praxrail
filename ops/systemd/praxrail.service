@@ -1,0 +1,19 @@
+[Unit]
+Description=Praxrail control plane
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/praxrail
+EnvironmentFile=/etc/praxrail/deployment.env
+ExecStart=/usr/bin/docker compose -f compose.yaml -f ops/compose.production.yaml --profile app up --detach --no-build
+ExecStartPost=/usr/bin/curl --fail --retry 20 --retry-delay 3 http://127.0.0.1:3000/health/ready
+ExecStop=/usr/bin/docker compose -f compose.yaml -f ops/compose.production.yaml down
+TimeoutStartSec=180
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target

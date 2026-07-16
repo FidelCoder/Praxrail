@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+    pull_policy: never
+    environment:
+      POSTGRES_PASSWORD: !reset null
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    ports: !override
+      - '127.0.0.1:5433:5432'
+    secrets:
+      - postgres_password
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    image: ${PRAXRAIL_IMAGE_DIGEST:?set a registry image pinned by sha256 digest}
+    pull_policy: never
+    build: !reset null
+    env_file: !reset []
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: !reset null
+      DATABASE_URL_FILE: /run/secrets/database_url
+      TELEGRAM_BOT_TOKEN: !reset null
+      TELEGRAM_BOT_TOKEN_FILE: /run/secrets/telegram_bot_token
+      TELEGRAM_WEBHOOK_SECRET: !reset null
+      TELEGRAM_WEBHOOK_SECRET_FILE: /run/secrets/telegram_webhook_secret
+      GITHUB_PRIVATE_KEY_BASE64: !reset null
+      GITHUB_PRIVATE_KEY_BASE64_FILE: /run/secrets/github_private_key_base64
+      GITHUB_WEBHOOK_SECRET: !reset null
+      GITHUB_WEBHOOK_SECRET_FILE: /run/secrets/github_webhook_secret
+      CODEX_BUILDER_API_KEY: !reset null
+      CODEX_BUILDER_API_KEY_FILE: /run/secrets/codex_builder_api_key
+      CODEX_REVIEWER_API_KEY: !reset null
+      CODEX_REVIEWER_API_KEY_FILE: /run/secrets/codex_reviewer_api_key
+    ports: !override
+      - '127.0.0.1:3000:3000'
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    secrets:
+      - database_url
+      - telegram_bot_token
+      - telegram_webhook_secret
+      - github_private_key_base64
+      - github_webhook_secret
+      - codex_builder_api_key
+      - codex_reviewer_api_key
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+secrets:
+  postgres_password:
+    file: ${PRAXRAIL_SECRETS_DIR:?set the host secret directory}/postgres_password
+  database_url:
+    file: ${PRAXRAIL_SECRETS_DIR}/database_url
+  telegram_bot_token:
+    file: ${PRAXRAIL_SECRETS_DIR}/telegram_bot_token
+  telegram_webhook_secret:
+    file: ${PRAXRAIL_SECRETS_DIR}/telegram_webhook_secret
+  github_private_key_base64:
+    file: ${PRAXRAIL_SECRETS_DIR}/github_private_key_base64
+  github_webhook_secret:
+    file: ${PRAXRAIL_SECRETS_DIR}/github_webhook_secret
+  codex_builder_api_key:
+    file: ${PRAXRAIL_SECRETS_DIR}/codex_builder_api_key
+  codex_reviewer_api_key:
+    file: ${PRAXRAIL_SECRETS_DIR}/codex_reviewer_api_key

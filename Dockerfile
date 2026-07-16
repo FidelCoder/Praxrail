@@ -1,7 +1,7 @@
 FROM node:22-alpine AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable
+RUN apk add --no-cache git && corepack enable
 WORKDIR /app
 
 FROM base AS dependencies
@@ -16,7 +16,7 @@ FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable && addgroup -S praxrail && adduser -S -G praxrail praxrail
+RUN apk add --no-cache git && corepack enable && addgroup -S praxrail && adduser -S -G praxrail praxrail
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

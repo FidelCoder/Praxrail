@@ -13,8 +13,9 @@
 Telegram, GitHub, repository files, issue text, pull request comments,
 attachments, and model output are untrusted. The HTTP boundary authenticates and
 validates providers. The domain layer enforces authority. PostgreSQL stores
-durable facts. Repository execution and model workers are separate processes in
-later phases and never inherit control-plane secrets.
+durable facts. Repository commands receive an explicit minimal environment and
+never inherit control-plane secrets. Builder and reviewer use distinct required
+credentials; the reviewer is read-only and neither role has merge authority.
 
 ## Threats And Controls
 
@@ -41,3 +42,5 @@ later phases and never inherit control-plane secrets.
 5. External delivery is at-least-once internally and effectively-once through
    idempotency.
 6. Integrations fail closed when required security configuration is absent.
+7. Host command execution is disabled outside explicit test mode; verification
+   requires a digest-pinned, network-off container.

@@ -1,0 +1,17 @@
+[Unit]
+Description=Encrypted Praxrail PostgreSQL backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=praxrail-backup
+Group=praxrail-backup
+EnvironmentFile=/etc/praxrail/backup.env
+WorkingDirectory=/opt/praxrail
+ExecStart=/opt/praxrail/scripts/backup.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/praxrail

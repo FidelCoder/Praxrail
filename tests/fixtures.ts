@@ -60,6 +60,7 @@ export function appConfig(overrides: Partial<AppConfig> = {}): AppConfig {
       enabled: false,
       allowedRepositories: new Set(),
     },
+    codex: { enabled: false, timeoutMs: 1_200_000 },
     telemetry: { enabled: false, serviceName: 'praxrail-test' },
     ...overrides,
   };

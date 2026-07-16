@@ -36,7 +36,9 @@ export class RepositoryCatalog {
   async enabled(): Promise<ManagedRepository[]> {
     const result = await this.database.query<RepositoryRow>(
       `SELECT id, project_id, full_name, worker_profile, verification_commands
-       FROM repositories WHERE enabled = true ORDER BY full_name`,
+       FROM repositories
+       WHERE enabled = true AND onboarding_status = 'APPROVED'
+       ORDER BY full_name`,
     );
     return result.rows.map((row) => ({
       id: row.id,

@@ -1,4 +1,7 @@
 import { Buffer } from 'node:buffer';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
 
@@ -14,6 +17,7 @@ describe('loadConfig', () => {
     expect(config.paths.workspaceRoot).toBe('/work/.praxrail/workspaces');
     expect(config.telegram.enabled).toBe(false);
     expect(config.github.enabled).toBe(false);
+    expect(config.codex.enabled).toBe(false);
     expect(config.jobs).toEqual({
       concurrency: 4,
       retryLimit: 3,
@@ -51,6 +55,55 @@ describe('loadConfig', () => {
     expect(JSON.stringify(config)).toBe('"[REDACTED]"');
     expect(JSON.stringify(config.github)).toBe('"[REDACTED]"');
     expect(JSON.stringify(config.database)).toBe('"[REDACTED]"');
+  });
+
+  it('fails closed for incomplete Codex configuration and redacts its key', () => {
+    expect(() => loadConfig({ ...base, CODEX_ENABLED: 'true' })).toThrow(
+      /CODEX_BUILDER_API_KEY/,
+    );
+    const config = loadConfig({
+      ...base,
+      CODEX_ENABLED: 'true',
+      CODEX_BUILDER_API_KEY: 'codex-builder-key-with-safe-length',
+      CODEX_REVIEWER_API_KEY: 'codex-reviewer-key-with-safe-length',
+      CODEX_MODEL: 'gpt-test',
+    });
+    expect(config.codex.enabled).toBe(true);
+    expect(config.codex.model).toBe('gpt-test');
+    expect(JSON.stringify(config.codex)).toBe('"[REDACTED]"');
+    expect(JSON.stringify(config)).not.toContain('codex-builder-key');
+    expect(() =>
+      loadConfig({
+        ...base,
+        CODEX_ENABLED: 'true',
+        CODEX_BUILDER_API_KEY: 'same-codex-key-with-safe-length',
+        CODEX_REVIEWER_API_KEY: 'same-codex-key-with-safe-length',
+        CODEX_MODEL: 'gpt-test',
+      }),
+    ).toThrow(/must be distinct/);
+  });
+
+  it('loads secrets from mounted files without overriding explicit values', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'praxrail-secrets-'));
+    const databaseFile = path.join(directory, 'database-url');
+    writeFileSync(
+      databaseFile,
+      'postgres://file-user:file-password@localhost:5433/database\n',
+    );
+    try {
+      expect(
+        loadConfig({ NODE_ENV: 'test', DATABASE_URL_FILE: databaseFile })
+          .database.url,
+      ).toContain('file-user');
+      expect(
+        loadConfig({
+          ...base,
+          DATABASE_URL_FILE: databaseFile,
+        }).database.url,
+      ).toBe(base.DATABASE_URL);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it('rejects unsafe budget relationships and root paths', () => {

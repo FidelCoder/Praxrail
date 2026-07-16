@@ -26,13 +26,16 @@ host-level secret injection.
 
 ## OpenAI/Codex
 
-1. Create a development-only OpenAI project with a project-scoped service
-   account and budget limit.
-2. Store the key in the worker secret store; do not inject it into the control
-   plane, repository commands, reviewer, or planner.
-3. Restrict the key to the builder process introduced by PXR-040 and verify
-   that repository subprocess environments do not contain it.
-4. Revoke the service-account key independently during a credential drill.
+1. Create two development-only project-scoped service accounts with budget
+   limits: one builder identity and one reviewer identity.
+2. Mount them separately as `CODEX_BUILDER_API_KEY_FILE` and
+   `CODEX_REVIEWER_API_KEY_FILE`. Configuration rejects missing or identical
+   identities.
+3. Never inject either key into repository commands. The reviewer runs
+   read-only with network and web search disabled; the builder is restricted to
+   its assigned worktree with network disabled.
+4. Revoke each service-account key independently during a credential drill and
+   prove that the other worker remains functional.
 
 ## DNS And TLS
 

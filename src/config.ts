@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 
 const booleanValue = z.preprocess((value: unknown): unknown => {
@@ -35,6 +36,30 @@ const optionalUrl = z.preprocess(
   (value: unknown): unknown => (value === '' ? undefined : value),
   z.url().optional(),
 );
+
+const secretFileMappings = [
+  ['DATABASE_URL', 'DATABASE_URL_FILE'],
+  ['MIGRATION_DATABASE_URL', 'MIGRATION_DATABASE_URL_FILE'],
+  ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_BOT_TOKEN_FILE'],
+  ['TELEGRAM_WEBHOOK_SECRET', 'TELEGRAM_WEBHOOK_SECRET_FILE'],
+  ['GITHUB_PRIVATE_KEY_BASE64', 'GITHUB_PRIVATE_KEY_BASE64_FILE'],
+  ['GITHUB_WEBHOOK_SECRET', 'GITHUB_WEBHOOK_SECRET_FILE'],
+  ['CODEX_BUILDER_API_KEY', 'CODEX_BUILDER_API_KEY_FILE'],
+  ['CODEX_REVIEWER_API_KEY', 'CODEX_REVIEWER_API_KEY_FILE'],
+] as const;
+
+function loadSecretFiles(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const loaded = { ...environment };
+  for (const [valueName, fileName] of secretFileMappings) {
+    if (loaded[valueName]) continue;
+    const filename = loaded[fileName];
+    if (!filename) continue;
+    const value = readFileSync(filename, 'utf8').trim();
+    if (!value) throw new Error(`${fileName} points to an empty secret file`);
+    loaded[valueName] = value;
+  }
+  return loaded;
+}
 
 const environmentSchema = z
   .object({
@@ -78,6 +103,19 @@ const environmentSchema = z
     GITHUB_PRIVATE_KEY_BASE64: optionalSecret,
     GITHUB_WEBHOOK_SECRET: optionalSecret,
     GITHUB_ALLOWED_REPOSITORIES: csvStrings.default([]),
+    CODEX_ENABLED: booleanValue.default(false),
+    CODEX_BUILDER_API_KEY: optionalSecret,
+    CODEX_REVIEWER_API_KEY: optionalSecret,
+    CODEX_MODEL: z.preprocess(
+      (value: unknown): unknown => (value === '' ? undefined : value),
+      z.string().min(1).max(100).optional(),
+    ),
+    CODEX_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(30_000)
+      .max(60 * 60_000)
+      .default(20 * 60_000),
     OTEL_ENABLED: booleanValue.default(false),
     OTEL_SERVICE_NAME: z.string().min(1).default('praxrail'),
   })
@@ -122,6 +160,32 @@ const environmentSchema = z
             path: [field],
           });
         }
+      }
+    }
+
+    if (value.CODEX_ENABLED) {
+      for (const [field, valid] of [
+        ['CODEX_BUILDER_API_KEY', Boolean(value.CODEX_BUILDER_API_KEY)],
+        ['CODEX_REVIEWER_API_KEY', Boolean(value.CODEX_REVIEWER_API_KEY)],
+        ['CODEX_MODEL', Boolean(value.CODEX_MODEL)],
+      ] as const) {
+        if (!valid) {
+          context.addIssue({
+            code: 'custom',
+            message: `${field} is required when Codex is enabled`,
+            path: [field],
+          });
+        }
+      }
+      if (
+        value.CODEX_BUILDER_API_KEY &&
+        value.CODEX_BUILDER_API_KEY === value.CODEX_REVIEWER_API_KEY
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: 'Builder and reviewer Codex credentials must be distinct',
+          path: ['CODEX_REVIEWER_API_KEY'],
+        });
       }
     }
 
@@ -171,6 +235,13 @@ export interface AppConfig {
     webhookSecret?: string;
     allowedRepositories: ReadonlySet<string>;
   };
+  codex: {
+    enabled: boolean;
+    builderApiKey?: string;
+    reviewerApiKey?: string;
+    model?: string;
+    timeoutMs: number;
+  };
   telemetry: { enabled: boolean; serviceName: string };
 }
 
@@ -205,7 +276,7 @@ export function loadConfig(
   environment: NodeJS.ProcessEnv = process.env,
   workingDirectory = process.cwd(),
 ): AppConfig {
-  const value = environmentSchema.parse(environment);
+  const value = environmentSchema.parse(loadSecretFiles(environment));
   const resolveFromWorkingDirectory = (input: string): string =>
     path.resolve(workingDirectory, input);
   const githubPrivateKey = decodePrivateKey(value.GITHUB_PRIVATE_KEY_BASE64);
@@ -275,6 +346,17 @@ export function loadConfig(
         ),
       ),
     },
+    codex: {
+      enabled: value.CODEX_ENABLED,
+      ...(value.CODEX_BUILDER_API_KEY
+        ? { builderApiKey: value.CODEX_BUILDER_API_KEY }
+        : {}),
+      ...(value.CODEX_REVIEWER_API_KEY
+        ? { reviewerApiKey: value.CODEX_REVIEWER_API_KEY }
+        : {}),
+      ...(value.CODEX_MODEL ? { model: value.CODEX_MODEL } : {}),
+      timeoutMs: value.CODEX_TIMEOUT_MS,
+    },
     telemetry: {
       enabled: value.OTEL_ENABLED,
       serviceName: value.OTEL_SERVICE_NAME,
@@ -283,5 +365,6 @@ export function loadConfig(
   preventSecretSerialization(config.database);
   preventSecretSerialization(config.telegram);
   preventSecretSerialization(config.github);
+  preventSecretSerialization(config.codex);
   return preventSecretSerialization(config);
 }

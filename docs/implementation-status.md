@@ -1,6 +1,8 @@
-# Foundation Implementation Status
+# Implementation Status
 
-The first 15 execution chunks have the following status as of 2026-07-16.
+The execution chunks have the following status as of 2026-07-16. `Implemented`
+means the source, migration, and local deterministic evidence exist. It does not
+substitute for external sandbox evidence or owner signoff.
 
 | Chunk   | Status                                                             | Evidence                                                                                                                                           |
 | ------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,7 +22,41 @@ The first 15 execution chunks have the following status as of 2026-07-16.
 | PXR-022 | Implemented                                                        | Deterministic commands and actor-bound expiring single-use approvals                                                                               |
 | PXR-030 | Implemented                                                        | GitHub App client, signature-first webhooks, repository allowlist, normalized events, and delivery replay protection                               |
 
-PXR-003 cannot be completed by source code alone. Telegram, GitHub, OpenAI,
-DNS, TLS, and sandbox repository resources remain disabled until a human operator
-provisions their credentials and records redacted delivery evidence. No placeholder
-credential is treated as completion.
+| Chunk   | Status                                           | Evidence or remaining gate                                                                                            |
+| ------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| PXR-031 | Implemented; FiberPass onboarding operator-gated | Strict repository policy, inspection report, instruction digest, and separate owner approval                          |
+| PXR-032 | Implemented                                      | Fenced per-repository worktrees, canonical remotes, managed roots, cleanup, and lifecycle tests                       |
+| PXR-033 | Implemented                                      | Argument-array runner, explicit environment, pinned network-off containers, time/output/disk limits                   |
+| PXR-040 | Implemented locally; live Codex gated            | Official SDK provider, durable agent runs, structured results, bounded actions, cancellation, and fake adapter        |
+| PXR-041 | Implemented                                      | Durable command-by-command verification, mutation detection, required gates, and evidence digest                      |
+| PXR-042 | Implemented                                      | Separate builder/reviewer keys and providers, read-only review, exact diff digest, file/line validation               |
+| PXR-043 | Implemented                                      | Failure taxonomy, attempt/review limits, budget blocking, actionable repair context, no-progress detection            |
+| PXR-050 | Implemented; sandbox GitHub gated                | Exact reviewed-diff commit, task-only branch, secret/path scan, idempotent PR create/update                           |
+| PXR-051 | Implemented                                      | Manual-only release merge decision; calibrated auto-merge remains disabled                                            |
+| PXR-052 | Implemented; live Telegram gated                 | Durable notification outbox, delivery ledger, retry isolation, sanitization, stable IDs                               |
+| PXR-053 | Implemented                                      | UTC ledger query, owner-timezone scheduling, DST tests, stored idempotent report and delivery state                   |
+| PXR-060 | Implemented; sandbox reconciliation gated        | Startup/scheduled reconciliation, manual merge/close/check/head decisions, audited idempotent actions                 |
+| PXR-061 | Implemented                                      | Safe terminal cleanup, disk guard, dead-letter retention, attributable lock/outbox recovery CLI                       |
+| PXR-062 | Local controls pass; release scan operator-gated | Secret/path scanning, fuzz tests, containment tests, security assessment ledger; live image/dependency review remains |
+| PXR-063 | Implemented                                      | Deterministic Telegram/GitHub/Codex/deployment fakes and mapped failure scenario catalog                              |
+| PXR-070 | Operator-gated                                   | Must pass all 14 scenarios twice in clean sandbox environments and collect owner signoff                              |
+| PXR-071 | Operator-gated                                   | Pinned production Compose/systemd definitions exist; VPS, TLS, webhooks, reboot, and health evidence do not           |
+| PXR-072 | Procedures implemented; drill operator-gated     | Encrypted backup/restore scripts and runbooks exist; off-host backup and clean restore drill remain                   |
+| PXR-073 | Operator-gated                                   | Pilot protocol exists; agreed sample, task evidence, metrics, and recommendation remain                               |
+
+## Post-MVP
+
+| Chunk   | Status                              | Evidence or gate                                                                                              |
+| ------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| PXR-100 | Implemented locally; provider gated | Authenticated sender policy, SPF/DKIM/DMARC alignment, task/thread correlation, scanned attachment metadata   |
+| PXR-110 | Implemented                         | Ledger-derived weekly facts and explicitly advisory continue/defer/stop/investigate recommendations           |
+| PXR-120 | Policy implemented; disabled        | Sample size, rollback rate, eligible class, checks, owner approval, and kill switch are mandatory             |
+| PXR-130 | Adapter framework implemented       | Staging deployment ledger, deterministic health gate, conclusive-failure rollback; repository adapter remains |
+| PXR-140 | Gate implemented; disabled          | Expiring production approval, production identity, change window, health evidence, incident and rollback      |
+| PXR-150 | Implemented                         | Versioned project policy packs, repository identities, worker pool, portfolio/task budgets, owner activation  |
+
+PXR-003 and PXR-070 through PXR-073 cannot be completed by source code alone.
+Telegram, GitHub, OpenAI, DNS/TLS, FiberPass onboarding, sandbox acceptance,
+VPS/reboot, off-host restore, and pilot resources remain disabled until a human
+operator records redacted evidence. No placeholder credential, generated
+runbook, fake adapter, or local test is treated as that evidence.

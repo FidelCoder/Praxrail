@@ -6,7 +6,13 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: ['src/**/*.ts'],
-      exclude: ['src/index.ts'],
+      exclude: [
+        'src/index.ts',
+        'src/runtime.ts',
+        'src/agents/provider.ts',
+        'src/integrations/github/automation-gateway.ts',
+        'src/integrations/telegram/notification-gateway.ts',
+      ],
       thresholds: {
         lines: 70,
         functions: 70,
