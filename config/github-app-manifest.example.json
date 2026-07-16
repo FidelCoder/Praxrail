@@ -1,0 +1,31 @@
+{
+  "name": "Praxrail Development",
+  "url": "https://example.invalid/praxrail",
+  "hook_attributes": {
+    "url": "https://example.invalid/webhooks/github",
+    "active": true
+  },
+  "redirect_url": "https://example.invalid/github/setup",
+  "public": false,
+  "default_permissions": {
+    "actions": "read",
+    "checks": "read",
+    "contents": "write",
+    "issues": "write",
+    "metadata": "read",
+    "pull_requests": "write",
+    "statuses": "read"
+  },
+  "default_events": [
+    "check_run",
+    "check_suite",
+    "installation",
+    "installation_repositories",
+    "issue_comment",
+    "pull_request",
+    "pull_request_review",
+    "push",
+    "repository",
+    "workflow_run"
+  ]
+}

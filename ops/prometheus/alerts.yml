@@ -1,0 +1,45 @@
+groups:
+  - name: praxrail
+    rules:
+      - alert: PraxrailUnavailable
+        expr: up{job="praxrail"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Praxrail metrics endpoint is unavailable
+      - alert: PraxrailDatabaseUnavailable
+        expr: praxrail_database_ready == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Praxrail cannot reach its control-plane database
+      - alert: PraxrailDeadLetterGrowth
+        expr: sum(praxrail_dead_letter_jobs) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Praxrail has jobs in a dead-letter queue
+      - alert: PraxrailRepeatedJobExhaustion
+        expr: sum(rate(praxrail_job_retries_total{result="exhausted"}[15m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Praxrail jobs are exhausting retries
+      - alert: PraxrailBudgetThreshold
+        expr: max(praxrail_budget_utilization_ratio) >= 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Praxrail has consumed at least 80 percent of a budget
+      - alert: PraxrailExternalEventFailures
+        expr: sum(rate(praxrail_external_events_total{result=~"rejected|rate_limited"}[10m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Praxrail is repeatedly rejecting or throttling provider events

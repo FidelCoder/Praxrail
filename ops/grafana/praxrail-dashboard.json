@@ -1,0 +1,88 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Active tasks by state",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (status) (praxrail_active_tasks)",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Queue latency p95",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, queue) (rate(praxrail_queue_latency_seconds_bucket[5m])))",
+          "legendFormat": "{{queue}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "External events",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (provider, result) (rate(praxrail_external_events_total[5m]))",
+          "legendFormat": "{{provider}} {{result}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Model cost",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(praxrail_model_cost_usd_total)",
+          "legendFormat": "USD"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Dead-letter jobs",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (queue) (praxrail_dead_letter_jobs)",
+          "legendFormat": "{{queue}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Budget utilization",
+      "type": "gauge",
+      "targets": [
+        {
+          "expr": "max by (period) (praxrail_budget_utilization_ratio)",
+          "legendFormat": "{{period}}"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": ["praxrail"],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Praxrail Control Plane",
+  "uid": "praxrail-control-plane",
+  "version": 1
+}

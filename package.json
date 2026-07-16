@@ -1,0 +1,52 @@
+{
+  "name": "praxrail",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Autonomous engineering control plane that turns product intent into tested, reviewed, and deployable software.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "packageManager": "pnpm@10.24.0",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:reset:test": "tsx scripts/reset-test-database.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "dev": "tsx watch src/index.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "start": "node dist/index.js",
+    "stack:logs": "docker compose logs -f",
+    "stack:start": "docker compose up -d postgres",
+    "stack:start:app": "docker compose --profile app up -d",
+    "stack:stop": "docker compose down",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build"
+  },
+  "dependencies": {
+    "@octokit/app": "^16.1.2",
+    "@octokit/webhooks": "^14.2.0",
+    "fastify": "^5.10.0",
+    "pg": "^8.22.0",
+    "pg-boss": "^12.26.0",
+    "prom-client": "^15.1.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@rolldown/binding-linux-x64-gnu": "^1.2.0",
+    "@types/node": "^26.1.1",
+    "@types/pg": "^8.20.0",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^10.7.0",
+    "prettier": "^3.9.5",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.64.0",
+    "vitest": "^4.1.10"
+  }
+}

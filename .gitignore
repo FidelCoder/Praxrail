@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.praxrail/
+coverage/
+dist/
+node_modules/
+*.log
+*.pem
+*.key
+*.sqlite

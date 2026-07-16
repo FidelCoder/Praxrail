@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://praxrail_app:praxrail_app@127.0.0.1:5432/praxrail
+      MIGRATION_DATABASE_URL: postgres://praxrail_migrator:praxrail_migrator@127.0.0.1:5432/praxrail
+      TEST_DATABASE_URL: postgres://praxrail_app:praxrail_app@127.0.0.1:5432/praxrail
+      TEST_MIGRATION_DATABASE_URL: postgres://praxrail_migrator:praxrail_migrator@127.0.0.1:5432/praxrail
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: praxrail
+          POSTGRES_USER: praxrail_migrator
+          POSTGRES_PASSWORD: praxrail_migrator
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U praxrail_migrator -d praxrail"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.24.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: psql "$MIGRATION_DATABASE_URL" -f docker/postgres/init/001_roles.sql
+      - run: pnpm db:migrate
+      - run: pnpm verify
