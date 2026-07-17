@@ -1,5 +1,5 @@
 [Unit]
-Description=Praxrail control plane
+Description=Praxrail agentic coding service
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target

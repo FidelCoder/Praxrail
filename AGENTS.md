@@ -2,8 +2,9 @@
 
 ## Purpose
 
-Praxrail is an engineering control plane. Persistent state and deterministic
-policy decide what may happen; model output is always untrusted input.
+Praxrail is a repository-agnostic autonomous agentic coding tool. Persistent
+state and deterministic policy decide what may happen; model output is always
+untrusted input.
 
 ## Commands
 

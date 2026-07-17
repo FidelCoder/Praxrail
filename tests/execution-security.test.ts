@@ -143,6 +143,21 @@ describe('repository and command containment', () => {
     ).toThrow();
   });
 
+  it('accepts bounded stack-specific worker profiles', () => {
+    expect(
+      repositoryPolicySchema.parse({
+        ...repositoryPolicy(),
+        workerProfile: 'data-engineering',
+      }).workerProfile,
+    ).toBe('data-engineering');
+    expect(() =>
+      repositoryPolicySchema.parse({
+        ...repositoryPolicy(),
+        workerProfile: '../../untrusted',
+      }),
+    ).toThrow();
+  });
+
   it('keeps generated branch slugs bounded and shell-neutral under fuzzing', () => {
     fc.assert(
       fc.property(fc.string(), (value) => {

@@ -24,6 +24,11 @@ host-level secret injection.
 6. Set `GITHUB_ENABLED=true` only after all values validate.
 7. Deliver signed `ping`, `pull_request`, and `workflow_run` fixtures.
 
+Repository access is project-independent. Add each target explicitly, complete
+its repository-specific inspection and owner approval, and verify its isolated
+worker profile before allowing Praxrail to write to it. Installing the App does
+not itself approve a repository for coding work.
+
 ## OpenAI/Codex
 
 1. Create two development-only project-scoped service accounts with budget

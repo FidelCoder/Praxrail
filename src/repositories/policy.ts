@@ -44,7 +44,12 @@ export const repositoryPolicySchema = z
       .regex(/^[a-zA-Z0-9._/-]+$/)
       .max(250),
     installationId: z.number().int().positive(),
-    workerProfile: z.enum(['frontend', 'backend', 'general']),
+    workerProfile: z
+      .string()
+      .trim()
+      .min(2)
+      .max(64)
+      .regex(/^[a-z0-9]+(?:[ -][a-z0-9]+)*$/),
     container: z.object({
       image: z.string().regex(/^[a-z0-9./:_-]+@sha256:[a-f0-9]{64}$/i),
       cpus: z.number().positive().max(8),

@@ -8,7 +8,7 @@
 - `PRAXRAIL_IMAGE_DIGEST` contains `registry/name@sha256:...`.
 - `PRAXRAIL_SECRETS_DIR` is root-owned, mode `0700`, and contains every file
   referenced by `ops/compose.production.yaml` with mode `0400`.
-- FiberPass production deployment credentials are absent.
+- Downstream application production deployment credentials are absent.
 - A tested prior application digest and a current encrypted backup are recorded.
 
 ## Host Provisioning

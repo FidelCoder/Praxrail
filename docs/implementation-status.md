@@ -1,6 +1,6 @@
 # Implementation Status
 
-The execution chunks have the following status as of 2026-07-16. `Implemented`
+The execution chunks have the following status as of 2026-07-17. `Implemented`
 means the source, migration, and local deterministic evidence exist. It does not
 substitute for external sandbox evidence or owner signoff.
 
@@ -24,7 +24,7 @@ substitute for external sandbox evidence or owner signoff.
 
 | Chunk   | Status                                           | Evidence or remaining gate                                                                                            |
 | ------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| PXR-031 | Implemented; FiberPass onboarding operator-gated | Strict repository policy, inspection report, instruction digest, and separate owner approval                          |
+| PXR-031 | Implemented; target onboarding operator-gated    | Strict repository policy, inspection report, instruction digest, and separate owner approval                          |
 | PXR-032 | Implemented                                      | Fenced per-repository worktrees, canonical remotes, managed roots, cleanup, and lifecycle tests                       |
 | PXR-033 | Implemented                                      | Argument-array runner, explicit environment, pinned network-off containers, time/output/disk limits                   |
 | PXR-040 | Implemented locally; live Codex gated            | Official SDK provider, durable agent runs, structured results, bounded actions, cancellation, and fake adapter        |
@@ -56,7 +56,7 @@ substitute for external sandbox evidence or owner signoff.
 | PXR-150 | Implemented                         | Versioned project policy packs, repository identities, worker pool, portfolio/task budgets, owner activation  |
 
 PXR-003 and PXR-070 through PXR-073 cannot be completed by source code alone.
-Telegram, GitHub, OpenAI, DNS/TLS, FiberPass onboarding, sandbox acceptance,
-VPS/reboot, off-host restore, and pilot resources remain disabled until a human
-operator records redacted evidence. No placeholder credential, generated
-runbook, fake adapter, or local test is treated as that evidence.
+Telegram, GitHub, OpenAI, DNS/TLS, target-repository onboarding, sandbox
+acceptance, VPS/reboot, off-host restore, and pilot resources remain disabled
+until a human operator records redacted evidence. No placeholder credential,
+generated runbook, fake adapter, or local test is treated as that evidence.

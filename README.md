@@ -1,17 +1,24 @@
 # Praxrail
 
-Praxrail is an autonomous engineering control plane that turns authenticated
-product intent into durable tasks and tested, independently reviewed pull
-requests while keeping merge manual.
+Praxrail is an autonomous agentic coding tool for planning, implementing,
+testing, reviewing, and publishing software changes across approved
+repositories. It turns authenticated change requests into durable task
+contracts and independently reviewed pull requests while keeping merge manual.
+
+Praxrail is repository-agnostic. Each project can register one or more
+repositories with its own worker profile, isolated execution image,
+instructions, verification commands, risk policy, and budget. Requests that do
+not identify an unambiguous approved repository are paused for clarification.
 
 The implementation includes:
 
 - strict task contracts and lifecycle policy;
+- multi-project, multi-repository onboarding and repository-specific policy;
 - PostgreSQL persistence, jobs, leases, locks, events, and idempotency;
 - authenticated Telegram intake and approval commands;
 - GitHub App authentication and signed webhook intake;
 - structured logs, metrics, traces, and cost accounting;
-- isolated builder and reviewer adapters, deterministic verification,
+- isolated coding and review agents, deterministic verification,
   reviewed-diff publishing, notifications, reports, and reconciliation;
 - encrypted backup/restore and attributable operator recovery tools; and
 - fail-closed configuration with merge, production deployment, and external
@@ -57,8 +64,9 @@ resources, and review evidence are configured. See the
 
 ## Architecture
 
-See [architecture](docs/architecture.md), [launch decisions](docs/decisions/0001-initial-launch-defaults.md),
-the [role permission matrix](docs/security/role-permissions.md), and the
+See [architecture](docs/architecture.md), [product scope](docs/decisions/0003-repository-agnostic-agentic-coding.md),
+[launch decisions](docs/decisions/0001-initial-launch-defaults.md), the
+[role permission matrix](docs/security/role-permissions.md), and the
 [implementation status](docs/implementation-status.md).
 
 Deployable observability definitions live in

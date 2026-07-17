@@ -2,7 +2,7 @@
   "name": "praxrail",
   "version": "0.1.0",
   "private": true,
-  "description": "Autonomous engineering control plane that turns product intent into tested, reviewed, and deployable software.",
+  "description": "Autonomous agentic coding tool for tested, independently reviewed software changes across repositories.",
   "type": "module",
   "engines": {
     "node": ">=22.12"

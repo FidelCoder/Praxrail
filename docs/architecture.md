@@ -1,5 +1,12 @@
 # Architecture
 
+Praxrail is an autonomous agentic coding tool, not an application-specific
+automation service. A project may contain one or many approved repositories
+across different languages and software stacks. Each repository supplies its
+own worker profile, instructions, isolated execution image, verification
+commands, and risk overrides. Task intake either resolves one approved target
+or pauses for clarification; it never guesses between repositories.
+
 Praxrail begins as one deployable TypeScript service with explicit internal
 boundaries:
 
@@ -32,10 +39,10 @@ authenticate -> validate -> deduplicate -> transact state + event -> enqueue
 External side effects are created from durable records and retried idempotently.
 No integration may mutate task state around the domain transition service.
 
-The execution evidence flow is:
+The coding evidence flow is:
 
 ```text
-approved repository -> fenced worktree -> structured builder result
+approved repository -> fenced worktree -> structured coding-agent result
   -> deterministic verification -> read-only independent review
   -> exact diff commit -> task branch -> pull request -> manual merge
 ```

@@ -47,10 +47,15 @@ function selectRepository(
   if (exact.length === 1) return exact[0] ?? null;
 
   const profile = repositories.filter((repository) => {
-    const workerProfile = repository.workerProfile.toLowerCase();
-    return (
-      normalized.includes(workerProfile) ||
-      normalized.includes(workerProfile.replace(' worker', ''))
+    const terms = repository.workerProfile
+      .toLowerCase()
+      .split(/[ -]+/)
+      .filter(Boolean)
+      .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    if (terms.length === 0) return false;
+    const phrase = terms.join('[ -]+');
+    return new RegExp(`(?:^|[^a-z0-9])${phrase}(?:$|[^a-z0-9])`).test(
+      normalized,
     );
   });
   return profile.length === 1 ? (profile[0] ?? null) : null;
@@ -103,7 +108,7 @@ export class RulePlanner {
       ],
       includedScope: [trimmed],
       excludedScope: [
-        'Unrequested product behavior',
+        'Unrequested software behavior',
         'Automatic merge',
         'Production deployment',
       ],

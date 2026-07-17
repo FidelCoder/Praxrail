@@ -73,7 +73,7 @@ const migrationConnectionString =
   process.env.TEST_MIGRATION_DATABASE_URL ?? connectionString;
 const describeDatabase = connectionString ? describe : describe.skip;
 
-describeDatabase('PostgreSQL control-plane integration', () => {
+describeDatabase('PostgreSQL agentic coding integration', () => {
   const database = new Database({
     url: connectionString ?? 'postgres://unavailable',
     ssl: false,
@@ -95,7 +95,7 @@ describeDatabase('PostgreSQL control-plane integration', () => {
       'TRUNCATE projects, incoming_messages, idempotency_keys, outbox_events, webhook_deliveries CASCADE',
     );
     await database.query(
-      `INSERT INTO projects (id, slug, name) VALUES ($1, 'fiberpass', 'FiberPass')`,
+      `INSERT INTO projects (id, slug, name) VALUES ($1, 'sample-suite', 'Sample Suite')`,
       [PROJECT_ID],
     );
     await database.query(
@@ -103,8 +103,8 @@ describeDatabase('PostgreSQL control-plane integration', () => {
         (id, project_id, github_repository_id, full_name, clone_url, default_branch,
          github_installation_id, worker_profile, verification_commands, enabled,
          onboarding_status)
-       VALUES ($1, $2, 123, 'fidelcoder/fiberpassfrontend',
-         'https://github.com/FidelCoder/fiberpassfrontend.git', 'main', 99,
+       VALUES ($1, $2, 123, 'example-org/web-app',
+         'https://github.com/example-org/web-app.git', 'main', 99,
          'frontend', '["pnpm test"]'::jsonb, true, 'APPROVED')`,
       [REPOSITORY_ID, PROJECT_ID],
     );
@@ -582,7 +582,7 @@ describeDatabase('PostgreSQL control-plane integration', () => {
         appId: 1,
         privateKey: 'unused',
         webhookSecret: 'unused-secure-secret',
-        allowedRepositories: new Set(['fidelcoder/fiberpassfrontend']),
+        allowedRepositories: new Set(['example-org/web-app']),
       },
       database,
       queue,
@@ -593,13 +593,13 @@ describeDatabase('PostgreSQL control-plane integration', () => {
       rawBody: Buffer.from('{"action":"opened"}'),
       parsedBody: {
         action: 'opened',
-        repository: { id: 123, full_name: 'FidelCoder/FiberPassFrontend' },
+        repository: { id: 123, full_name: 'Example-Org/Web-App' },
         pull_request: {
           id: 10,
           number: 2,
           state: 'open',
           merged: false,
-          html_url: 'https://github.com/FidelCoder/FiberPassFrontend/pull/2',
+          html_url: 'https://github.com/Example-Org/Web-App/pull/2',
           head: { sha: '1234567890abcdef' },
         },
       },
@@ -806,7 +806,7 @@ describeDatabase('PostgreSQL control-plane integration', () => {
       version: 1,
       policy: {
         version: 1,
-        repositoryIdentities: ['fidelcoder/fiberpassfrontend'],
+        repositoryIdentities: ['example-org/web-app'],
         workerPool: 'fixture',
         portfolioBudgetUsd: 100,
         taskBudgetUsd: 5,
@@ -1137,7 +1137,7 @@ describeDatabase('PostgreSQL control-plane integration', () => {
       .spyOn(git, 'fetchMirror')
       .mockResolvedValue(undefined);
     vi.spyOn(git, 'remoteUrl').mockResolvedValue(
-      'https://github.com/FidelCoder/FiberPassFrontend.git',
+      'https://github.com/Example-Org/Web-App.git',
     );
     vi.spyOn(git, 'resolveRef').mockResolvedValue('e'.repeat(40));
     vi.spyOn(git, 'addWorktree').mockImplementation(
@@ -1158,8 +1158,8 @@ describeDatabase('PostgreSQL control-plane integration', () => {
     );
     const repository = {
       id: REPOSITORY_ID,
-      fullName: 'fidelcoder/fiberpassfrontend',
-      cloneUrl: 'https://github.com/FidelCoder/FiberPassFrontend.git',
+      fullName: 'example-org/web-app',
+      cloneUrl: 'https://github.com/Example-Org/Web-App.git',
       defaultBranch: 'main',
     };
     try {
@@ -1406,7 +1406,7 @@ describeDatabase('PostgreSQL control-plane integration', () => {
         taskId: created.task.id,
         taskKey: created.task.taskKey,
         repositoryId: REPOSITORY_ID,
-        repositoryFullName: 'fidelcoder/fiberpassfrontend',
+        repositoryFullName: 'example-org/web-app',
         defaultBranch: 'main',
         worktreePath: checkout,
         gitRefId,
