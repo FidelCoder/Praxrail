@@ -1,9 +1,21 @@
 {
   "name": "@praxrail/core",
-  "version": "0.2.0",
-  "private": true,
+  "version": "0.3.0",
+  "private": false,
   "description": "Transport-independent Praxrail product contracts.",
+  "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FidelCoder/Praxrail.git",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

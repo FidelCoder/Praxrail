@@ -63,23 +63,38 @@ generated runbook, fake adapter, or local test is treated as that evidence.
 
 ## Terminal Product Foundation
 
-| Chunk   | Status      | Deterministic evidence                                                                                                                                |
-| ------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PXR-200 | Implemented | Product contract, surface ownership, deployment/support matrix, and ADR 0004                                                                          |
-| PXR-201 | Implemented | Current-to-target ownership map, dependency direction, compatibility sequence, and forward-only migration policy                                      |
-| PXR-202 | Implemented | Versioned command grammar, flags, output, exit codes, confirmation policy, and transcripts                                                            |
-| PXR-203 | Implemented | OpenAPI v1 contract, shared Zod schemas, Unix/HTTPS transports, scoped identity, rotation/revocation, cursors, limits, and compatibility policy       |
-| PXR-204 | Implemented | Fenced ownership state machine, lease rules, invalid transitions, crash recovery, and returned-workspace safety contract                              |
-| PXR-205 | Implemented | Channel-neutral identity, action, routing, replay, expiry, preference, and redaction contract                                                         |
-| PXR-210 | Implemented | Core/client/CLI workspace packages, public exports, compatibility runtime, package builds/tests, and compiler-backed boundary check                   |
-| PXR-211 | Implemented | Authenticated `/api/v1`, project/role scope, normalized errors, idempotent mutations, audit actors, limits, Unix socket, and remote listener          |
-| PXR-212 | Implemented | Typed local/remote transport, profiles, mode-0600 token fallback, bounded retries, token rotation/revocation, events, output, fake transport tests    |
-| PXR-213 | Implemented | Injectable CLI foundation, global flags, human/quiet/JSON output, stable exit codes, timeout validation, help/version behavior, and command tests     |
-| PXR-214 | Implemented | Serve/start/stop/restart/status/logs, PID lock, protected socket, readiness wait, graceful shutdown, stale-lock recovery, systemd/launchd definitions |
-| PXR-220 | Implemented | Identity-bound embedded/remote workers, repository/profile routing, heartbeats, drain/revocation, task/attempt/repository fences, and mismatch tests  |
-| PXR-221 | Implemented | Durable attach/pause/human/return/resume/recover service, process cancellation state, managed paths, diff digest, symlink/submodule/secret checks     |
-| PXR-222 | Implemented | Ordered durable event and separately redacted output cursors, bounded pages/chunks, truncation markers, cancellation-aware watches, resume tests      |
-| PXR-223 | Implemented | Dependency-gated claims, independent repository locks, restart/lease reconciliation, recovery-required state, and attributable operator recovery      |
+| Chunk   | Status                                  | Deterministic evidence                                                                                                                                |
+| ------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PXR-200 | Implemented                             | Product contract, surface ownership, deployment/support matrix, and ADR 0004                                                                          |
+| PXR-201 | Implemented                             | Current-to-target ownership map, dependency direction, compatibility sequence, and forward-only migration policy                                      |
+| PXR-202 | Implemented                             | Versioned command grammar, flags, output, exit codes, confirmation policy, and transcripts                                                            |
+| PXR-203 | Implemented                             | OpenAPI v1 contract, shared Zod schemas, Unix/HTTPS transports, scoped identity, rotation/revocation, cursors, limits, and compatibility policy       |
+| PXR-204 | Implemented                             | Fenced ownership state machine, lease rules, invalid transitions, crash recovery, and returned-workspace safety contract                              |
+| PXR-205 | Implemented                             | Channel-neutral identity, action, routing, replay, expiry, preference, and redaction contract                                                         |
+| PXR-210 | Implemented                             | Core/client/CLI workspace packages, public exports, compatibility runtime, package builds/tests, and compiler-backed boundary check                   |
+| PXR-211 | Implemented                             | Authenticated `/api/v1`, project/role scope, normalized errors, idempotent mutations, audit actors, limits, Unix socket, and remote listener          |
+| PXR-212 | Implemented                             | Typed local/remote transport, profiles, mode-0600 token fallback, bounded retries, token rotation/revocation, events, output, fake transport tests    |
+| PXR-213 | Implemented                             | Injectable CLI foundation, global flags, human/quiet/JSON output, stable exit codes, timeout validation, help/version behavior, and command tests     |
+| PXR-214 | Implemented                             | Serve/start/stop/restart/status/logs, PID lock, protected socket, readiness wait, graceful shutdown, stale-lock recovery, systemd/launchd definitions |
+| PXR-220 | Implemented                             | Identity-bound embedded/remote workers, repository/profile routing, heartbeats, drain/revocation, task/attempt/repository fences, and mismatch tests  |
+| PXR-221 | Implemented                             | Durable attach/pause/human/return/resume/recover service, process cancellation state, managed paths, diff digest, symlink/submodule/secret checks     |
+| PXR-222 | Implemented                             | Ordered durable event and separately redacted output cursors, bounded pages/chunks, truncation markers, cancellation-aware watches, resume tests      |
+| PXR-223 | Implemented                             | Dependency-gated claims, independent repository locks, restart/lease reconciliation, recovery-required state, and attributable operator recovery      |
+| PXR-230 | Implemented                             | Setup, doctor, project, repository, inspection, approval-before-write, JSON/human output, and CLI help/completions                                    |
+| PXR-231 | Implemented                             | Task create/list/status/control, clarify, prioritize, pause/resume, cancel, retry, abandon, archive, approval decision, and recovery commands         |
+| PXR-232 | Implemented                             | Event pages, watch, output logs, evidence, cost, cursor, follow, bounded output, and task/repository/project filters                                  |
+| PXR-233 | Implemented                             | Attach, local shell, explicit return, managed workspace context, fencing token, lease, and recovery flow                                              |
+| PXR-234 | Implemented                             | Diff, verification, findings, review/fix/publish requests, pull-request evidence, and precondition checks                                             |
+| PXR-240 | Implemented                             | Channel-neutral identities, preferences, quiet hours, render/redaction, delivery ledger, circuit state, and connector status                          |
+| PXR-241 | Provider-gated                          | Telegram connector is wired through shared delivery and normalized remote-action contracts; live bot sandbox evidence remains external                |
+| PXR-242 | Provider-gated                          | Email provider gateway, identity verification delivery, connector setup/test/disable, and fake delivery tests exist; live provider evidence remains   |
+| PXR-243 | Implemented                             | Remote action grants, replay prevention, preference routing, per-channel reliability state, and tests for transport parity                            |
+| PXR-250 | Registry-gated                          | Public package metadata, generated completions/manpage, package verification script, tarball content checks, and release workflow dry runs            |
+| PXR-251 | Implemented                             | Upgrade preflight, versioned API/client/runtime contract, forward-only migration requirement, and support docs                                        |
+| PXR-252 | Implemented locally                     | Threat-model addendum, shell containment, redaction, package content checks, and deterministic security tests; external scans remain release-gated    |
+| PXR-253 | Implemented                             | Doctor, support bundle, connector state, outbox pressure, worker/schema checks, and redacted operational docs                                         |
+| PXR-254 | Implemented docs; live onboarding gated | Installation, quickstart, terminal, communication, and upgrade docs exist; live channel onboarding remains external evidence                          |
+| PXR-255 | Release-gated                           | Local typecheck/focused tests/product DB scenario recorded in 0.3.0 gate doc; npm, live providers, scans, and two clean release runs remain           |
 
 Verification evidence is produced by `pnpm verify`, the PostgreSQL integration
 suite against a freshly migrated `praxrail_test`, the package-level acceptance

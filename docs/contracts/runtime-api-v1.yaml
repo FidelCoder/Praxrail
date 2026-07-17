@@ -160,7 +160,7 @@ components:
 
 x-praxrail-compatibility:
   policy: additive-within-v1
-  minimum-client-version: 0.2.0
+  minimum-client-version: 0.3.0
   event-cursors: retained-and-monotonic
   output-cursors: retained-and-monotonic
   retry-policy: safe-reads-or-idempotency-key-only

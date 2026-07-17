@@ -1,0 +1,47 @@
+.TH PRAXRAIL 1 "2026-07-17" "Praxrail 0.3.0" "Praxrail Manual"
+.SH NAME
+praxrail - terminal client for the Praxrail autonomous coding runtime
+.SH SYNOPSIS
+.B praxrail
+[global options] group command [arguments]
+.SH DESCRIPTION
+Praxrail creates, monitors, controls, verifies, reviews, and publishes coding
+tasks across explicitly approved repositories. Email and Telegram provide
+bounded asynchronous actions; the terminal remains authoritative.
+.SH COMMANDS
+.TP
+.B runtime
+serve, start, stop, restart, status, logs
+.TP
+.B profile
+list, use
+.TP
+.B project
+create, list, show, update, archive
+.TP
+.B repo
+add, inspect, approve, list, show, disable, remove
+.TP
+.B task
+create, list, show, clarify, prioritize, pause, resume, cancel, retry, abandon, archive, status, watch, logs, events, attempts, costs, verification, findings, ownership, attach, shell, return, recover, diff, check, review, fix, publish, pull-request
+.TP
+.B channel
+setup, link, verify, status, test, preference, rotate, disable, revoke
+.TP
+.B approval
+approve, reject
+.TP
+.B upgrade
+preflight
+.TP
+.B support
+bundle
+.SH GLOBAL OPTIONS
+--profile, --json, --quiet, --no-color, --non-interactive, --timeout,
+--dry-run, --yes, --follow, --version, --help.
+.SH SECURITY
+Repository approval, publication, revocation, and destructive task operations
+require explicit confirmation. Interactive shells are available only for a
+local human-owned managed workspace.
+.SH SEE ALSO
+https://github.com/FidelCoder/Praxrail

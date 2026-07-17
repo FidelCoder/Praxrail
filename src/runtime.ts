@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { ApiAuthService } from './api/auth-service.js';
 import { CodexSdkProvider, type AgentProvider } from './agents/provider.js';
 import type { AppConfig } from './config.js';
+import { ChannelDeliveryService } from './communications/channel-delivery-service.js';
+import { RemoteActionService } from './communications/remote-action-service.js';
 import { GitHubAppClient } from './integrations/github/auth.js';
 import { GitHubAutomationGateway } from './integrations/github/automation-gateway.js';
 import { GitHubWebhookService } from './integrations/github/webhook-service.js';
@@ -14,6 +16,7 @@ import { Metrics } from './observability/metrics.js';
 import { runWithTrace } from './observability/context.js';
 import { Database } from './persistence/database.js';
 import { PlannerService } from './planner/planner-service.js';
+import { ProductService } from './product/product-service.js';
 import { RulePlanner } from './planner/rule-planner.js';
 import { CleanupService } from './recovery/cleanup-service.js';
 import { ReconciliationService } from './recovery/reconciliation-service.js';
@@ -49,12 +52,16 @@ export interface Runtime {
   metrics: Metrics;
   started: boolean;
   auth: ApiAuthService;
+  approvals: ApprovalService;
   tasks: TaskService;
   queries: TaskQueryService;
   events: EventStreamService;
   workers: WorkerRegistryService;
   workspaces: WorkspaceOwnershipService;
   idempotency: IdempotencyService;
+  product: ProductService;
+  channels: ChannelDeliveryService;
+  remoteActions: RemoteActionService;
   telegram: TelegramProcessor;
   githubWebhooks: GitHubWebhookService;
   planner: PlannerService;
@@ -84,6 +91,7 @@ export function createRuntime(config: AppConfig): Runtime {
   const costs = new CostService(database, config.budget);
   const incomingMessages = new IncomingMessageService(database);
   const idempotency = new IdempotencyService(database);
+  const outbox = new OutboxService(database);
   const queries = new TaskQueryService(database);
   const auth = new ApiAuthService(database);
   const events = new EventStreamService(database);
@@ -120,11 +128,11 @@ export function createRuntime(config: AppConfig): Runtime {
   const reconciliation = githubAutomation
     ? new ReconciliationService(database, tasks, githubAutomation)
     : null;
-  const outbox = new OutboxService(database);
   const telegramGateway =
     config.telegram.enabled && config.telegram.botToken
       ? new TelegramNotificationGateway(config.telegram.botToken)
       : null;
+  const product = new ProductService(database, tasks, outbox);
   const notifications = telegramGateway
     ? new NotificationDispatcher(database, outbox, telegramGateway)
     : null;
@@ -140,6 +148,20 @@ export function createRuntime(config: AppConfig): Runtime {
           reviewer: new CodexSdkProvider(config.codex.reviewerApiKey),
         }
       : null;
+  const channels = new ChannelDeliveryService(database, outbox, {
+    ...(telegramGateway
+      ? {
+          TELEGRAM: {
+            send: async (input) =>
+              telegramGateway.send({
+                destination: input.destination,
+                html: input.html,
+                idempotencyKey: input.idempotencyKey,
+              }),
+          },
+        }
+      : {}),
+  });
   return {
     config,
     database,
@@ -147,12 +169,16 @@ export function createRuntime(config: AppConfig): Runtime {
     metrics,
     started: false,
     auth,
+    approvals,
     tasks,
     queries,
     events,
     workers,
     workspaces,
     idempotency,
+    product,
+    channels,
+    remoteActions: new RemoteActionService(database, product, approvals),
     telegram,
     githubWebhooks,
     planner,
@@ -210,16 +236,24 @@ export async function startRuntime(runtime: Runtime): Promise<void> {
   await runtime.queue.work('cleanup', async () => {
     await runtime.cleanup.cleanupTerminalWorktrees();
   });
-  if (runtime.notifications) {
-    await runtime.queue.work('notifications', async (job) => {
-      await runtime.notifications?.deliverBatch(`notification-${job.id}`);
-    });
-    await runtime.queue.send(
-      'notifications',
-      { trigger: 'startup' },
-      { idempotencyKey: 'notifications:startup' },
+  await runtime.queue.work('notifications', async (job) => {
+    await runtime.notifications?.deliverBatch(
+      ['notification', job.id].join('-'),
     );
-  }
+    await runtime.channels.deliverBatch(
+      'EMAIL',
+      ['email-notification', job.id].join('-'),
+    );
+    await runtime.channels.deliverBatch(
+      'TELEGRAM',
+      ['telegram-notification', job.id].join('-'),
+    );
+  });
+  await runtime.queue.send(
+    'notifications',
+    { trigger: 'startup' },
+    { idempotencyKey: 'notifications:startup' },
+  );
   const destination = runtime.config.telegram.allowedChatIds
     .values()
     .next().value;
@@ -248,16 +282,15 @@ export async function startRuntime(runtime: Runtime): Promise<void> {
   runtime.maintenanceTimer = setInterval(() => {
     const notificationBucket = Math.floor(Date.now() / 15_000);
     const maintenanceBucket = Math.floor(Date.now() / 300_000);
-    const operations: Promise<unknown>[] = [];
-    if (runtime.notifications) {
-      operations.push(
-        runtime.queue.send(
-          'notifications',
-          { trigger: 'poll' },
-          { idempotencyKey: `notifications:${notificationBucket}` },
-        ),
-      );
-    }
+    const operations: Promise<unknown>[] = [
+      runtime.queue.send(
+        'notifications',
+        { trigger: 'poll' },
+        {
+          idempotencyKey: ['notifications', notificationBucket].join(':'),
+        },
+      ),
+    ];
     operations.push(
       runtime.queue.send(
         'cleanup',

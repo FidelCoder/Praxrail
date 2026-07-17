@@ -7,6 +7,7 @@ import {
   ProfileStore,
   type PraxrailClientOptions,
 } from '@praxrail/client';
+import { runProductCommand } from './product-commands.js';
 import {
   readRuntimeLog,
   runtimePaths,
@@ -21,16 +22,18 @@ export interface CliIo {
 }
 
 export interface CliDependencies {
-  createProfileStore?: () => Pick<ProfileStore, 'get' | 'list' | 'use'>;
+  createProfileStore?: () => Pick<ProfileStore, 'get' | 'list' | 'use'> &
+    Partial<Pick<ProfileStore, 'save' | 'remove'>>;
   createClient?: (
     options: PraxrailClientOptions,
-  ) => Pick<PraxrailClient, 'runtimeStatus'>;
+  ) => Pick<PraxrailClient, 'runtimeStatus'> & Partial<PraxrailClient>;
   runtimePaths?: typeof runtimePaths;
   runtimePid?: typeof runtimePid;
   startRuntimeProcess?: typeof startRuntimeProcess;
   stopRuntimeProcess?: typeof stopRuntimeProcess;
   readRuntimeLog?: typeof readRuntimeLog;
   spawnForeground?: typeof spawnForeground;
+  spawnShell?: typeof spawnShell;
   runtimeEntry?: () => string;
 }
 
@@ -88,13 +91,17 @@ function exitCode(error: unknown): number {
   return 1;
 }
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 const help = `Praxrail ${VERSION}
 
 Usage: praxrail [--profile NAME] [--json] <command>
 
 Commands:
   version                    Print the CLI version
+  init NAME                  Configure the first connection profile
+  login NAME                 Add or replace a connection profile
+  logout NAME                Remove a connection profile
+  doctor                     Diagnose runtime, workers, schema, and channels
   runtime serve              Run the compatibility runtime in the foreground
   runtime start              Start the runtime in the background
   runtime stop               Stop the managed runtime
@@ -103,6 +110,15 @@ Commands:
   runtime logs               Print the bounded managed-runtime log tail
   profile list               List connection profiles
   profile use NAME           Select a connection profile
+  project create|list|show|update|archive
+  repo add|inspect|approve|list|show|disable|remove
+  task create|list|show|clarify|prioritize|pause|resume|cancel|retry|abandon|archive
+  task status|watch|logs|events|attempts|costs|verification|findings
+  task ownership|attach|shell|return|recover|diff|check|review|fix|publish|pull-request
+  channel setup|link|verify|status|test|preference|rotate|disable|revoke
+  approval approve|reject      Decide a pending approval with a one-time token
+  upgrade preflight          Check whether an upgrade may proceed
+  support bundle             Generate a redacted diagnostic bundle
 
 Global flags:
   --profile NAME             Select a connection profile
@@ -111,6 +127,9 @@ Global flags:
   --no-color                 Disable color output
   --non-interactive          Refuse interactive prompts
   --timeout MILLISECONDS     Set request timeout
+  --dry-run                  Validate a mutation without writing
+  --yes                      Confirm a destructive or high-risk command
+  --follow                   Follow a durable event or output cursor
   --version                  Print the CLI version
   --help                     Show this help
 `;
@@ -142,6 +161,45 @@ export async function runCli(
         timeout: { type: 'string' },
         version: { type: 'boolean', short: 'V', default: false },
         help: { type: 'boolean', short: 'h', default: false },
+        endpoint: { type: 'string' },
+        token: { type: 'string' },
+        project: { type: 'string' },
+        repository: { type: 'string' },
+        name: { type: 'string' },
+        slug: { type: 'string' },
+        status: { type: 'string' },
+        title: { type: 'string' },
+        request: { type: 'string' },
+        reason: { type: 'string' },
+        priority: { type: 'string' },
+        budget: { type: 'string' },
+        limit: { type: 'string' },
+        cursor: { type: 'string' },
+        destination: { type: 'string' },
+        code: { type: 'string' },
+        identity: { type: 'string' },
+        'full-name': { type: 'string' },
+        'clone-url': { type: 'string' },
+        'default-branch': { type: 'string' },
+        'worker-profile': { type: 'string' },
+        'mirror-path': { type: 'string' },
+        'credential-ref': { type: 'string' },
+        'minimum-severity': { type: 'string' },
+        mode: { type: 'string' },
+        'quiet-start': { type: 'string' },
+        'quiet-end': { type: 'string' },
+        timezone: { type: 'string' },
+        escalation: { type: 'string' },
+        'fencing-token': { type: 'string' },
+        approval: { type: 'string' },
+        direction: { type: 'string' },
+        lease: { type: 'string' },
+        'dry-run': { type: 'boolean', default: false },
+        'include-archived': { type: 'boolean', default: false },
+        follow: { type: 'boolean', default: false },
+        enable: { type: 'boolean' },
+        disable: { type: 'boolean', default: false },
+        yes: { type: 'boolean', default: false },
       },
     });
     const json = parsed.values.json;
@@ -150,7 +208,7 @@ export async function runCli(
       if (json) io.stdout.write(`${JSON.stringify(value)}\n`);
       else if (!quiet) io.stdout.write(`${human}\n`);
     };
-    const [command, action, argument] = parsed.positionals;
+    const [command, action, argument, ...extra] = parsed.positionals;
     if (parsed.values.version) {
       print({ version: VERSION }, VERSION);
       return 0;
@@ -162,6 +220,42 @@ export async function runCli(
 
     if (command === 'version') {
       print({ version: VERSION }, VERSION);
+      return 0;
+    }
+    const createStore =
+      dependencies.createProfileStore ?? (() => new ProfileStore());
+    if (command === 'init' || command === 'login') {
+      const store = createStore();
+      if (!store.save) throw new Error('Profile storage is unavailable');
+      const name = action ?? 'default';
+      const endpoint = parsed.values.endpoint;
+      const token = parsed.values.token;
+      if (!endpoint || !token) {
+        throw new CliUsageError(
+          'login requires --endpoint and --token; tokens are never prompted or printed',
+        );
+      }
+      await store.save(
+        name,
+        {
+          endpoint,
+          token,
+          allowInsecureRemote: false,
+        },
+        true,
+      );
+      print(
+        { profile: name, endpoint },
+        `Profile ${name} configured for ${endpoint}`,
+      );
+      return 0;
+    }
+    if (command === 'logout') {
+      const store = createStore();
+      if (!store.remove) throw new Error('Profile storage is unavailable');
+      if (!action) throw new CliUsageError('logout requires a profile name');
+      await store.remove(action);
+      print({ profile: action, removed: true }, `Profile ${action} removed`);
       return 0;
     }
     const paths = (dependencies.runtimePaths ?? runtimePaths)();
@@ -269,6 +363,63 @@ export async function runCli(
         return 0;
       }
     }
+    if (
+      ![
+        'doctor',
+        'diagnose',
+        'project',
+        'repo',
+        'repository',
+        'task',
+        'channel',
+        'notify',
+        'approval',
+        'upgrade',
+        'support',
+      ].includes(command)
+    ) {
+      throw new CliUsageError('Unknown command. Run praxrail --help.');
+    }
+    const destructive =
+      (command === 'project' && action === 'archive') ||
+      ((command === 'repo' || command === 'repository') &&
+        ['approve', 'remove'].includes(action ?? '')) ||
+      (command === 'task' &&
+        ['cancel', 'abandon', 'archive', 'publish'].includes(action ?? '')) ||
+      ((command === 'channel' || command === 'notify') &&
+        ['rotate', 'revoke'].includes(action ?? '')) ||
+      (command === 'approval' && ['approve', 'reject'].includes(action ?? ''));
+    if (destructive && !parsed.values.yes) {
+      throw new CliUsageError(
+        'This command requires --yes after reviewing the target and reason',
+      );
+    }
+    const store = createStore();
+    const profile = await store.get(parsed.values.profile);
+    const timeoutMs = timeoutValue(parsed.values.timeout);
+    const createClient =
+      dependencies.createClient ??
+      ((options: PraxrailClientOptions) => new PraxrailClient(options));
+    const client = createClient({
+      ...profile,
+      ...(timeoutMs === undefined ? {} : { timeoutMs }),
+    }) as PraxrailClient;
+    const result = await runProductCommand({
+      command,
+      action,
+      argument,
+      extra,
+      options: parsed.values,
+      client,
+      emit: print,
+      spawnShell: dependencies.spawnShell ?? spawnShell,
+    });
+    if (result) {
+      if (result.human || result.value !== null) {
+        print(result.value, result.human);
+      }
+      return result.exitCode ?? 0;
+    }
     throw new CliUsageError('Unknown command. Run praxrail --help.');
   } catch (error) {
     const code = exitCode(error);
@@ -299,6 +450,48 @@ async function spawnForeground(
     const child = spawn(process.execPath, [entry], {
       stdio: 'inherit',
       env: { ...process.env, PRAXRAIL_PID_FILE: pidFile },
+    });
+    child.once('error', reject);
+    child.once('exit', (code, signal) => {
+      resolve(code ?? (signal ? 1 : 0));
+    });
+  });
+}
+
+async function spawnShell(context: {
+  path: string;
+  taskId: string;
+  taskKey: string;
+  repository: string;
+  branch: string;
+  fencingToken: string;
+}): Promise<number> {
+  const { spawn } = await import('node:child_process');
+  const shell = process.env.SHELL;
+  if (!shell || !['bash', 'zsh'].includes(path.basename(shell))) {
+    throw new CliUsageError(
+      'Interactive handoff requires SHELL to reference bash or zsh',
+    );
+  }
+  const env = Object.fromEntries(
+    ['HOME', 'LANG', 'LC_ALL', 'PATH', 'SHELL', 'TERM', 'USER']
+      .map((key) => [key, process.env[key]])
+      .filter((entry): entry is [string, string] => entry[1] !== undefined),
+  );
+  return new Promise<number>((resolve, reject) => {
+    const child = spawn(shell, ['-i'], {
+      cwd: context.path,
+      stdio: 'inherit',
+      env: {
+        ...env,
+        PRAXRAIL_TASK_ID: context.taskId,
+        PRAXRAIL_TASK_KEY: context.taskKey,
+        PRAXRAIL_REPOSITORY: context.repository,
+        PRAXRAIL_BRANCH: context.branch,
+        PRAXRAIL_FENCING_TOKEN: context.fencingToken,
+        PRAXRAIL_HANDOFF: 'HUMAN_OWNED',
+        PS1: `[praxrail:${context.taskKey}] ${process.env.PS1 ?? '\\u@\\h:\\w\\$ '}`,
+      },
     });
     child.once('error', reject);
     child.once('exit', (code, signal) => {

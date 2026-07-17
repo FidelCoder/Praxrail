@@ -217,14 +217,14 @@ describe('product packages', () => {
       stderr: { write: (value: string) => (stderr += value) },
     };
     expect(await runCli(['--json', 'version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.2.0' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.0' });
     stdout = '';
     expect(await runCli(['unknown'], io)).toBe(2);
     expect(stderr).toContain('Unknown command');
     stdout = '';
     stderr = '';
     expect(await runCli(['--json', '--version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.2.0' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.0' });
 
     stdout = '';
     stderr = '';
@@ -262,6 +262,65 @@ describe('product packages', () => {
       error: 'ACTION_NOT_PERMITTED',
       exitCode: 6,
     });
+  });
+
+  it('dispatches stable product commands and confirms high-risk actions', async () => {
+    let stdout = '';
+    let stderr = '';
+    const io = {
+      stdout: { write: (value: string) => (stdout += value) },
+      stderr: { write: (value: string) => (stderr += value) },
+    };
+    const profile = {
+      endpoint: 'unix:///tmp/praxrail-product.sock',
+      token,
+      allowInsecureRemote: false,
+    };
+    const project = {
+      id: '12345678-1234-4234-8234-123456789012',
+      slug: 'sample-product',
+      name: 'Sample Product',
+      status: 'ACTIVE' as const,
+      createdAt: '2026-07-17T10:00:00.000Z',
+      updatedAt: '2026-07-17T10:00:00.000Z',
+    };
+    const dependencies = {
+      createProfileStore: () => ({
+        get: async () => profile,
+        list: async () => ({
+          current: 'local',
+          profiles: { local: profile },
+        }),
+        use: async () => undefined,
+      }),
+      createClient: () => ({
+        runtimeStatus: async () => ({
+          apiVersion: 'v1' as const,
+          runtimeVersion: '0.3.0',
+          status: 'READY' as const,
+          database: true,
+          queue: true,
+          mode: 'LOCAL' as const,
+        }),
+        listProjects: async () => [project],
+      }),
+    };
+
+    expect(await runCli(['--json', 'project', 'list'], io, dependencies)).toBe(
+      0,
+    );
+    expect(JSON.parse(stdout)).toEqual([project]);
+
+    stdout = '';
+    stderr = '';
+    expect(
+      await runCli(
+        ['task', 'cancel', 'PXR-1', '--reason', 'No longer required'],
+        io,
+        dependencies,
+      ),
+    ).toBe(2);
+    expect(stderr).toContain('requires --yes');
   });
 
   it('enforces endpoint trust, response bounds, and request timeouts', async () => {

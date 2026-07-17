@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.24.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm exec vitest run tests/communications.test.ts tests/product-packages.test.ts
+      - run: pnpm package:verify
+      - run: pnpm --filter @praxrail/core publish --dry-run --provenance --access public
+      - run: pnpm --filter @praxrail/client publish --dry-run --provenance --access public
+      - run: pnpm --filter @praxrail/cli publish --dry-run --provenance --access public

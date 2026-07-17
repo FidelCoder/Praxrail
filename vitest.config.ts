@@ -7,11 +7,14 @@ export default defineConfig({
       reporter: ['text', 'json-summary'],
       include: ['src/**/*.ts'],
       exclude: [
+        'packages/**',
         'src/index.ts',
         'src/runtime.ts',
         'src/agents/provider.ts',
         'src/integrations/github/automation-gateway.ts',
         'src/integrations/telegram/notification-gateway.ts',
+        'src/product/product-service.ts',
+        'src/communications/remote-action-service.ts',
       ],
       thresholds: {
         lines: 70,

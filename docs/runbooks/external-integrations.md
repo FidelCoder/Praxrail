@@ -8,10 +8,26 @@ host-level secret injection.
 1. Create a development bot through BotFather.
 2. Generate a high-entropy webhook path secret.
 3. Record authorized numeric user and chat IDs.
-4. Set `TELEGRAM_ENABLED=true` only after token, secret, and both allowlists are
+4. Store the bot token as a managed secret and configure the connector with
+   `praxrail channel setup TELEGRAM --credential-ref secret://...`.
+5. Set `TELEGRAM_ENABLED=true` only after token, secret, and both allowlists are
    populated.
-5. Register `https://<host>/webhooks/telegram/<secret>` with Telegram.
-6. Send an unauthorized and authorized test update and verify audit outcomes.
+6. Register `https://<host>/webhooks/telegram/<secret>` with Telegram.
+7. Link and verify a Telegram identity, run `praxrail channel test TELEGRAM`,
+   then send unauthorized and authorized test updates and verify audit outcomes.
+
+## Email
+
+1. Choose a sandbox email provider account with SPF, DKIM, and DMARC alignment.
+2. Store the provider token as a managed secret and configure the connector with
+   `praxrail channel setup EMAIL --credential-ref secret://...`.
+3. Link and verify a sandbox recipient with `praxrail channel link EMAIL` and
+   `praxrail channel verify`.
+4. Run `praxrail channel test EMAIL` and record the provider delivery ID.
+5. Prove bounce, invalid recipient, retry, and circuit-open behavior without
+   exposing recipient addresses in logs.
+6. Disable the connector with `praxrail channel setup EMAIL --disable` before
+   rotating or revoking provider credentials.
 
 ## GitHub App
 

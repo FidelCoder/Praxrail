@@ -1,9 +1,21 @@
 {
   "name": "@praxrail/client",
-  "version": "0.2.0",
-  "private": true,
+  "version": "0.3.0",
+  "private": false,
   "description": "Typed local and remote client for Praxrail.",
+  "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FidelCoder/Praxrail.git",
+    "directory": "packages/client"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

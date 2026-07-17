@@ -25,7 +25,14 @@ The implementation includes:
   integrations disabled by default.
 
 The terminal product is organized as `@praxrail/core`, `@praxrail/client`, and
-`@praxrail/cli` workspaces around the compatibility runtime. During source
+`@praxrail/cli` workspaces around the compatibility runtime. Active developers
+operate Praxrail from the shell; email and Telegram provide notifications,
+approvals, clarifications, and concise remote actions.
+
+Start with the [installation guide](docs/product/installation.md),
+[quickstart](docs/product/quickstart.md), [terminal workflows](docs/product/terminal-workflows.md),
+[communications guide](docs/product/communications.md), and
+[upgrade/support guide](docs/product/upgrades-and-support.md). During source
 development, run `pnpm cli -- version` to exercise the CLI entry point.
 
 ## Local Development

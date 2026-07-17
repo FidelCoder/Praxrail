@@ -2,7 +2,7 @@ import http from 'node:http';
 import https from 'node:https';
 
 export interface TransportRequest {
-  method: 'GET' | 'POST' | 'DELETE';
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string;
   headers: Readonly<Record<string, string>>;
   body?: string;

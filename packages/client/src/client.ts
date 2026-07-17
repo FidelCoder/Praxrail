@@ -1,6 +1,14 @@
 import {
   apiErrorSchema,
+  channelIdentitySchema,
+  channelPreferenceSchema,
+  diagnosticReportSchema,
+  projectSchema,
+  repositorySchema,
   runtimeStatusSchema,
+  supportBundleSchema,
+  taskDetailSchema,
+  taskEvidenceSchema,
   taskEventSchema,
   taskOutputChunkSchema,
   taskSummarySchema,
@@ -10,9 +18,18 @@ import {
   workerSchema,
   workspaceOwnershipSchema,
   type ApiError,
+  type ChannelIdentity,
+  type ChannelPreference,
+  type DiagnosticReport,
+  type Project,
+  type Repository,
   type RuntimeStatus,
+  type SupportBundle,
+  type TaskDetail,
+  type TaskEvidence,
   type TaskEvent,
   type TaskOutputChunk,
+  type TaskStatus,
   type TaskSummary,
   type Worker,
   type WorkerAssignment,
@@ -40,10 +57,10 @@ export class PraxrailClientError extends Error {
 export interface PraxrailClientOptions {
   endpoint: string;
   token: string;
-  timeoutMs?: number;
-  maxRetries?: number;
-  retryBaseDelayMs?: number;
-  allowInsecureRemote?: boolean;
+  timeoutMs?: number | undefined;
+  maxRetries?: number | undefined;
+  retryBaseDelayMs?: number | undefined;
+  allowInsecureRemote?: boolean | undefined;
   transport?: ClientTransport;
 }
 
@@ -105,9 +122,9 @@ export class PraxrailClient {
 
   async events(
     input: {
-      cursor?: number;
-      taskId?: string;
-      limit?: number;
+      cursor?: number | undefined;
+      taskId?: string | undefined;
+      limit?: number | undefined;
     } = {},
   ): Promise<{ events: TaskEvent[]; nextCursor: number }> {
     const query = new URLSearchParams({
@@ -122,10 +139,10 @@ export class PraxrailClient {
 
   async *watch(
     input: {
-      cursor?: number;
-      taskId?: string;
+      cursor?: number | undefined;
+      taskId?: string | undefined;
       signal?: AbortSignal;
-      pollMilliseconds?: number;
+      pollMilliseconds?: number | undefined;
     } = {},
   ): AsyncGenerator<TaskEvent> {
     let cursor = input.cursor ?? 0;
@@ -154,8 +171,8 @@ export class PraxrailClient {
 
   async output(input: {
     taskId: string;
-    cursor?: number;
-    limit?: number;
+    cursor?: number | undefined;
+    limit?: number | undefined;
   }): Promise<{ chunks: TaskOutputChunk[]; nextCursor: number }> {
     const query = new URLSearchParams({
       taskId: input.taskId,
@@ -169,9 +186,9 @@ export class PraxrailClient {
 
   async *watchOutput(input: {
     taskId: string;
-    cursor?: number;
+    cursor?: number | undefined;
     signal?: AbortSignal;
-    pollMilliseconds?: number;
+    pollMilliseconds?: number | undefined;
   }): AsyncGenerator<TaskOutputChunk> {
     let cursor = input.cursor ?? 0;
     while (!input.signal?.aborted) {
@@ -222,6 +239,467 @@ export class PraxrailClient {
     );
   }
 
+  async listProjects(): Promise<Project[]> {
+    return z
+      .array(projectSchema)
+      .parse(await this.request('GET', '/api/v1/projects'));
+  }
+
+  async getProject(reference: string): Promise<Project> {
+    return projectSchema.parse(
+      await this.request(
+        'GET',
+        `/api/v1/projects/${encodeURIComponent(reference)}`,
+      ),
+    );
+  }
+
+  async createProject(
+    input: { slug: string; name: string; dryRun?: boolean | undefined },
+    idempotencyKey: string = randomUUID(),
+  ): Promise<Project & { dryRun?: boolean | undefined }> {
+    return projectSchema
+      .extend({ dryRun: z.boolean().optional() })
+      .parse(
+        await this.request('POST', '/api/v1/projects', input, idempotencyKey),
+      );
+  }
+
+  async updateProject(
+    reference: string,
+    input: {
+      name?: string | undefined;
+      status?: Project['status'] | undefined;
+      dryRun?: boolean | undefined;
+    },
+    idempotencyKey: string = randomUUID(),
+  ): Promise<Project & { dryRun?: boolean | undefined }> {
+    return projectSchema
+      .extend({ dryRun: z.boolean().optional() })
+      .parse(
+        await this.request(
+          'PATCH',
+          `/api/v1/projects/${encodeURIComponent(reference)}`,
+          input,
+          idempotencyKey,
+        ),
+      );
+  }
+
+  async listRepositories(projectId?: string): Promise<Repository[]> {
+    const query = projectId
+      ? `?projectId=${encodeURIComponent(projectId)}`
+      : '';
+    return z
+      .array(repositorySchema)
+      .parse(await this.request('GET', `/api/v1/repositories${query}`));
+  }
+
+  async getRepository(reference: string): Promise<Repository> {
+    return repositorySchema.parse(
+      await this.request(
+        'GET',
+        `/api/v1/repositories/${encodeURIComponent(reference)}`,
+      ),
+    );
+  }
+
+  async addRepository(
+    input: {
+      projectId: string;
+      fullName: string;
+      cloneUrl: string;
+      defaultBranch: string;
+      workerProfile: string;
+      githubRepositoryId?: number | undefined;
+      githubInstallationId?: number | undefined;
+      mirrorPath?: string | undefined;
+      verificationCommands?: string[];
+      policy?: Record<string, unknown>;
+      dryRun?: boolean | undefined;
+    },
+    idempotencyKey: string = randomUUID(),
+  ): Promise<Repository & { dryRun?: boolean | undefined }> {
+    return repositorySchema
+      .extend({ dryRun: z.boolean().optional() })
+      .parse(
+        await this.request(
+          'POST',
+          '/api/v1/repositories',
+          input,
+          idempotencyKey,
+        ),
+      );
+  }
+
+  async inspectRepository(reference: string): Promise<Record<string, unknown>> {
+    return z
+      .record(z.string(), z.unknown())
+      .parse(
+        await this.request(
+          'GET',
+          `/api/v1/repositories/${encodeURIComponent(reference)}/inspection`,
+        ),
+      );
+  }
+
+  async setRepositoryStatus(
+    reference: string,
+    input: {
+      action: 'approve' | 'disable' | 'remove';
+      dryRun?: boolean | undefined;
+    },
+    idempotencyKey: string = randomUUID(),
+  ): Promise<Record<string, unknown>> {
+    return z
+      .record(z.string(), z.unknown())
+      .parse(
+        await this.request(
+          'POST',
+          `/api/v1/repositories/${encodeURIComponent(reference)}/status`,
+          input,
+          idempotencyKey,
+        ),
+      );
+  }
+
+  async listTaskDetails(
+    input: {
+      projectId?: string | undefined;
+      repositoryId?: string | undefined;
+      status?: TaskStatus | undefined;
+      limit?: number | undefined;
+      includeArchived?: boolean | undefined;
+    } = {},
+  ): Promise<TaskDetail[]> {
+    const query = new URLSearchParams();
+    if (input.projectId) query.set('projectId', input.projectId);
+    if (input.repositoryId) query.set('repositoryId', input.repositoryId);
+    if (input.status) query.set('status', input.status);
+    if (input.limit) query.set('limit', String(input.limit));
+    if (input.includeArchived) query.set('includeArchived', 'true');
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return z
+      .array(taskDetailSchema)
+      .parse(await this.request('GET', `/api/v1/task-details${suffix}`));
+  }
+
+  async getTaskDetail(reference: string): Promise<TaskDetail> {
+    return taskDetailSchema.parse(
+      await this.request(
+        'GET',
+        `/api/v1/task-details/${encodeURIComponent(reference)}`,
+      ),
+    );
+  }
+
+  async createTask(
+    input: {
+      title: string;
+      request: string;
+      projectId: string;
+      repositoryId: string;
+      priority?: number | undefined;
+      budgetUsd?: number | undefined;
+      dryRun?: boolean | undefined;
+    },
+    idempotencyKey: string = randomUUID(),
+  ): Promise<TaskDetail & { dryRun?: boolean | undefined }> {
+    return taskDetailSchema
+      .extend({ dryRun: z.boolean().optional() })
+      .parse(
+        await this.request(
+          'POST',
+          '/api/v1/task-details',
+          input,
+          idempotencyKey,
+        ),
+      );
+  }
+
+  async controlTask(
+    reference: string,
+    input: {
+      action:
+        | 'clarify'
+        | 'prioritize'
+        | 'pause'
+        | 'resume'
+        | 'cancel'
+        | 'retry'
+        | 'abandon'
+        | 'archive';
+      reason?: string | undefined;
+      priority?: number | undefined;
+    },
+    idempotencyKey: string = randomUUID(),
+  ): Promise<TaskDetail> {
+    return taskDetailSchema.parse(
+      await this.request(
+        'POST',
+        `/api/v1/task-details/${encodeURIComponent(reference)}/control`,
+        input,
+        idempotencyKey,
+      ),
+    );
+  }
+
+  async taskEvidence(reference: string): Promise<TaskEvidence> {
+    return taskEvidenceSchema.parse(
+      await this.request(
+        'GET',
+        `/api/v1/task-details/${encodeURIComponent(reference)}/evidence`,
+      ),
+    );
+  }
+
+  async requestPipelineAction(
+    reference: string,
+    action: 'check' | 'review' | 'fix' | 'publish',
+    reason: string,
+    idempotencyKey: string = randomUUID(),
+  ): Promise<Record<string, unknown>> {
+    return z
+      .record(z.string(), z.unknown())
+      .parse(
+        await this.request(
+          'POST',
+          `/api/v1/task-details/${encodeURIComponent(reference)}/pipeline/${action}`,
+          { reason },
+          idempotencyKey,
+        ),
+      );
+  }
+
+  async workspaceContext(taskId: string): Promise<Record<string, unknown>> {
+    return z
+      .record(z.string(), z.unknown())
+      .parse(
+        await this.request(
+          'GET',
+          `/api/v1/tasks/${encodeURIComponent(taskId)}/workspace/context`,
+        ),
+      );
+  }
+
+  async requestWorkspaceAttach(
+    taskId: string,
+    reason: string,
+    leaseMilliseconds = 3_600_000,
+    idempotencyKey: string = randomUUID(),
+  ): Promise<WorkspaceOwnership> {
+    return workspaceOwnershipSchema.parse(
+      await this.request(
+        'POST',
+        `/api/v1/tasks/${encodeURIComponent(taskId)}/workspace/attach`,
+        { reason, leaseMilliseconds },
+        idempotencyKey,
+      ),
+    );
+  }
+
+  async returnWorkspace(
+    taskId: string,
+    fencingToken: string,
+    reason: string,
+    idempotencyKey: string = randomUUID(),
+  ): Promise<Record<string, unknown>> {
+    return z
+      .record(z.string(), z.unknown())
+      .parse(
+        await this.request(
+          'POST',
+          `/api/v1/tasks/${encodeURIComponent(taskId)}/workspace/return`,
+          { fencingToken, reason },
+          idempotencyKey,
+        ),
+      );
+  }
+
+  async recoverWorkspace(
+    taskId: string,
+    direction: 'HUMAN' | 'AGENT',
+    reason: string,
+    leaseMilliseconds = 3_600_000,
+    idempotencyKey: string = randomUUID(),
+  ): Promise<WorkspaceOwnership> {
+    return workspaceOwnershipSchema.parse(
+      await this.request(
+        'POST',
+        `/api/v1/tasks/${encodeURIComponent(taskId)}/workspace/recover`,
+        { direction, reason, leaseMilliseconds },
+        idempotencyKey,
+      ),
+    );
+  }
+
+  async listChannels(): Promise<ChannelIdentity[]> {
+    return z
+      .array(channelIdentitySchema)
+      .parse(await this.request('GET', '/api/v1/channels'));
+  }
+
+  async linkChannel(
+    input: {
+      channel: 'EMAIL' | 'TELEGRAM';
+      destination: string;
+      projectId?: string | undefined;
+    },
+    idempotencyKey: string = randomUUID(),
+  ): Promise<{ identity: ChannelIdentity; verificationQueued: true }> {
+    return z
+      .object({
+        identity: channelIdentitySchema,
+        verificationQueued: z.literal(true),
+      })
+      .parse(
+        await this.request(
+          'POST',
+          '/api/v1/channels/link',
+          input,
+          idempotencyKey,
+        ),
+      );
+  }
+
+  async verifyChannel(
+    identityId: string,
+    code: string,
+    idempotencyKey: string = randomUUID(),
+  ): Promise<ChannelIdentity> {
+    return channelIdentitySchema.parse(
+      await this.request(
+        'POST',
+        `/api/v1/channels/${encodeURIComponent(identityId)}/verify`,
+        { code },
+        idempotencyKey,
+      ),
+    );
+  }
+
+  async setChannelStatus(
+    identityId: string,
+    status: 'VERIFIED' | 'DISABLED' | 'REVOKED',
+    idempotencyKey: string = randomUUID(),
+  ): Promise<ChannelIdentity> {
+    return channelIdentitySchema.parse(
+      await this.request(
+        'POST',
+        `/api/v1/channels/${encodeURIComponent(identityId)}/status`,
+        { status },
+        idempotencyKey,
+      ),
+    );
+  }
+
+  async setChannelPreference(
+    preference: ChannelPreference,
+    idempotencyKey: string = randomUUID(),
+  ): Promise<ChannelPreference> {
+    return channelPreferenceSchema.parse(
+      await this.request(
+        'PUT',
+        '/api/v1/channel-preferences',
+        preference,
+        idempotencyKey,
+      ),
+    );
+  }
+
+  async configureConnector(
+    channel: 'EMAIL' | 'TELEGRAM',
+    input: {
+      enabled: boolean;
+      credentialReference?: string | undefined;
+      configuration?: Record<string, unknown>;
+    },
+    idempotencyKey: string = randomUUID(),
+  ): Promise<Record<string, unknown>> {
+    return z
+      .record(z.string(), z.unknown())
+      .parse(
+        await this.request(
+          'PUT',
+          `/api/v1/connectors/${channel}`,
+          input,
+          idempotencyKey,
+        ),
+      );
+  }
+
+  async listConnectors(): Promise<Record<string, unknown>[]> {
+    return z
+      .array(z.record(z.string(), z.unknown()))
+      .parse(await this.request('GET', '/api/v1/connectors'));
+  }
+
+  async connectorStatus(
+    channel: 'EMAIL' | 'TELEGRAM',
+  ): Promise<Record<string, unknown>> {
+    return z
+      .record(z.string(), z.unknown())
+      .parse(await this.request('GET', `/api/v1/connectors/${channel}`));
+  }
+
+  async testConnector(
+    channel: 'EMAIL' | 'TELEGRAM',
+    idempotencyKey: string = randomUUID(),
+  ): Promise<Record<string, unknown>> {
+    return z
+      .record(z.string(), z.unknown())
+      .parse(
+        await this.request(
+          'POST',
+          `/api/v1/connectors/${channel}/test`,
+          {},
+          idempotencyKey,
+        ),
+      );
+  }
+
+  async decideApproval(
+    approvalId: string,
+    input: { token: string; approved: boolean; reason: string },
+    idempotencyKey: string = randomUUID(),
+  ): Promise<Record<string, unknown>> {
+    return z
+      .record(z.string(), z.unknown())
+      .parse(
+        await this.request(
+          'POST',
+          `/api/v1/approvals/${encodeURIComponent(approvalId)}/decision`,
+          input,
+          idempotencyKey,
+        ),
+      );
+  }
+
+  async doctor(): Promise<DiagnosticReport> {
+    return diagnosticReportSchema.parse(
+      await this.request('GET', '/api/v1/diagnostics'),
+    );
+  }
+
+  async supportBundle(): Promise<SupportBundle> {
+    return supportBundleSchema.parse(
+      await this.request('GET', '/api/v1/support-bundle'),
+    );
+  }
+
+  async upgradePreflight(): Promise<{
+    compatible: boolean;
+    blockers: string[];
+    steps: string[];
+  }> {
+    return z
+      .object({
+        compatible: z.boolean(),
+        blockers: z.array(z.string()),
+        steps: z.array(z.string()),
+      })
+      .parse(await this.request('GET', '/api/v1/upgrade/preflight'));
+  }
+
   async rotateToken(): Promise<{
     token: string;
     actorId: string;
@@ -246,7 +724,7 @@ export class PraxrailClient {
     const headers: Record<string, string> = {
       accept: 'application/json',
       authorization: `Bearer ${this.options.token}`,
-      'user-agent': '@praxrail/client/0.2.0',
+      'user-agent': '@praxrail/client/0.3.0',
     };
     if (body !== undefined) headers['content-type'] = 'application/json';
     if (idempotencyKey !== undefined) {

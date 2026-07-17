@@ -1,9 +1,21 @@
 {
   "name": "@praxrail/cli",
-  "version": "0.2.0",
-  "private": true,
+  "version": "0.3.0",
+  "private": false,
   "description": "Terminal interface for Praxrail.",
+  "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FidelCoder/Praxrail.git",
+    "directory": "packages/cli"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "praxrail": "./dist/bin.js"
   },
@@ -14,7 +26,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "completions",
+    "man"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

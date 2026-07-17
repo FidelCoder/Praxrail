@@ -1,5 +1,7 @@
 import {
   API_VERSION,
+  channelPreferenceSchema,
+  channelSchema,
   workerClaimSchema,
   workerHeartbeatSchema,
   workerRegistrationSchema,
@@ -11,6 +13,7 @@ import { z } from 'zod';
 import {
   AuthenticationError,
   AuthorizationError,
+  ConflictError,
   InvalidRequestError,
   RateLimitError,
 } from '../domain/errors.js';
@@ -80,6 +83,114 @@ const bindBody = z.object({
   gitRefId: z.uuid(),
   workerId: z.uuid(),
   fencingToken: z.string().regex(/^\d+$/),
+});
+const productReferenceParams = z.object({
+  reference: z.string().min(1).max(200),
+});
+const actionParams = productReferenceParams.extend({
+  action: z.enum(['check', 'review', 'fix', 'publish']),
+});
+const projectCreateBody = z.object({
+  slug: z.string().min(2).max(63),
+  name: z.string().min(2).max(120),
+  dryRun: z.boolean().default(false),
+});
+const projectUpdateBody = z.object({
+  name: z.string().min(2).max(120).optional(),
+  status: z.enum(['ACTIVE', 'PAUSED', 'DISABLED']).optional(),
+  dryRun: z.boolean().default(false),
+});
+const repositoryListQuery = z.object({ projectId: z.uuid().optional() });
+const repositoryCreateBody = z.object({
+  projectId: z.uuid(),
+  fullName: z.string().min(3).max(300),
+  cloneUrl: z.url(),
+  defaultBranch: z.string().min(1).max(200),
+  workerProfile: z.string().min(1).max(100),
+  githubRepositoryId: z.number().int().positive().optional(),
+  githubInstallationId: z.number().int().positive().optional(),
+  mirrorPath: z.string().min(1).max(2_000).optional(),
+  verificationCommands: z.array(z.string().min(1).max(200)).max(100).optional(),
+  policy: z.record(z.string(), z.unknown()).optional(),
+  dryRun: z.boolean().default(false),
+});
+const repositoryActionBody = z.object({
+  action: z.enum(['approve', 'disable', 'remove']),
+  dryRun: z.boolean().default(false),
+});
+const productTaskListQuery = z.object({
+  projectId: z.uuid().optional(),
+  repositoryId: z.uuid().optional(),
+  status: z
+    .enum([
+      'INBOX',
+      'REFINING',
+      'BLOCKED',
+      'READY',
+      'BUILDING',
+      'FAILED',
+      'REVIEWING',
+      'CHANGES_REQUESTED',
+      'CI',
+      'PR_READY',
+      'AWAITING_APPROVAL',
+      'MERGED',
+      'DEPLOYED',
+      'VERIFIED',
+      'CANCELLED',
+      'ABANDONED',
+      'SUPERSEDED',
+    ])
+    .optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(50),
+  includeArchived: z.coerce.boolean().default(false),
+});
+const taskCreateBody = z.object({
+  title: z.string().min(1).max(180),
+  request: z.string().min(1).max(10_000),
+  projectId: z.uuid(),
+  repositoryId: z.uuid(),
+  priority: z.number().int().min(0).max(100).optional(),
+  budgetUsd: z.number().positive().optional(),
+  dryRun: z.boolean().default(false),
+});
+const taskControlBody = z.object({
+  action: z.enum([
+    'clarify',
+    'prioritize',
+    'pause',
+    'resume',
+    'cancel',
+    'retry',
+    'abandon',
+    'archive',
+  ]),
+  reason: z.string().min(1).max(10_000).optional(),
+  priority: z.number().int().min(0).max(100).optional(),
+});
+const pipelineBody = z.object({
+  reason: z.string().min(1).max(1_000),
+});
+const channelLinkBody = z.object({
+  channel: channelSchema,
+  destination: z.string().min(1).max(500),
+  projectId: z.uuid().optional(),
+});
+const channelVerifyBody = z.object({ code: z.string().min(16).max(200) });
+const channelStatusBody = z.object({
+  status: z.enum(['VERIFIED', 'DISABLED', 'REVOKED']),
+});
+const connectorParams = z.object({ channel: channelSchema });
+const connectorBody = z.object({
+  enabled: z.boolean(),
+  credentialReference: z.string().min(1).max(2_000).optional(),
+  configuration: z.record(z.string(), z.unknown()).optional(),
+});
+const approvalParams = z.object({ approvalId: z.uuid() });
+const approvalDecisionBody = z.object({
+  token: z.string().min(16).max(500),
+  approved: z.boolean(),
+  reason: z.string().min(1).max(1_000),
 });
 
 function bodyValue(request: FastifyRequest): unknown {
@@ -175,7 +286,7 @@ export function registerProductApi(
         const database = await runtime.database.isReady();
         return {
           apiVersion: API_VERSION,
-          runtimeVersion: '0.2.0',
+          runtimeVersion: '0.3.0',
           status: database && runtime.started ? 'READY' : 'DEGRADED',
           database,
           queue: runtime.started,
@@ -218,6 +329,296 @@ export function registerProductApi(
         await assertTaskScope(runtime, actor, params.reference);
         return runtime.queries.resolve(params.reference);
       });
+      api.get('/projects', async (request) => {
+        const actor = actorFor(request);
+        assertCapability(actor.role, 'TASK_READ');
+        return runtime.product.listProjects(actor);
+      });
+      api.post('/projects', async (request) => {
+        const actor = actorFor(request);
+        const body = projectCreateBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: 'project-create',
+          body,
+          operation: () => runtime.product.createProject(body, actor),
+        });
+      });
+      api.get('/projects/:reference', async (request) => {
+        const actor = actorFor(request);
+        assertCapability(actor.role, 'TASK_READ');
+        const params = productReferenceParams.parse(request.params);
+        return runtime.product.getProject(params.reference, actor);
+      });
+      api.patch('/projects/:reference', async (request) => {
+        const actor = actorFor(request);
+        const params = productReferenceParams.parse(request.params);
+        const body = projectUpdateBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: `project-update:${params.reference}`,
+          body,
+          operation: () =>
+            runtime.product.updateProject(params.reference, body, actor),
+        });
+      });
+
+      api.get('/repositories', async (request) => {
+        const actor = actorFor(request);
+        assertCapability(actor.role, 'TASK_READ');
+        const query = repositoryListQuery.parse(request.query);
+        return runtime.product.listRepositories(actor, query.projectId);
+      });
+      api.post('/repositories', async (request) => {
+        const actor = actorFor(request);
+        const body = repositoryCreateBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: 'repository-create',
+          body,
+          operation: () => runtime.product.addRepository(body, actor),
+        });
+      });
+      api.get('/repositories/:reference', async (request) => {
+        const actor = actorFor(request);
+        assertCapability(actor.role, 'TASK_READ');
+        const params = productReferenceParams.parse(request.params);
+        return runtime.product.getRepository(params.reference, actor);
+      });
+      api.get('/repositories/:reference/inspection', async (request) => {
+        const actor = actorFor(request);
+        const params = productReferenceParams.parse(request.params);
+        return runtime.product.inspectRepository(params.reference, actor);
+      });
+      api.post('/repositories/:reference/status', async (request) => {
+        const actor = actorFor(request);
+        const params = productReferenceParams.parse(request.params);
+        const body = repositoryActionBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: `repository-status:${params.reference}`,
+          body,
+          operation: () =>
+            runtime.product.setRepositoryStatus(
+              params.reference,
+              body.action,
+              actor,
+              body.dryRun,
+            ),
+        });
+      });
+
+      api.get('/task-details', async (request) => {
+        const actor = actorFor(request);
+        assertCapability(actor.role, 'TASK_READ');
+        const query = productTaskListQuery.parse(request.query);
+        return runtime.product.listTasks(actor, query);
+      });
+      api.post('/task-details', async (request) => {
+        const actor = actorFor(request);
+        assertCapability(actor.role, 'TASK_CREATE');
+        const body = taskCreateBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: 'task-create',
+          body,
+          operation: () => runtime.product.createTask(body, actor),
+        });
+      });
+      api.get('/task-details/:reference', async (request) => {
+        const actor = actorFor(request);
+        assertCapability(actor.role, 'TASK_READ');
+        const params = productReferenceParams.parse(request.params);
+        return runtime.product.getTask(params.reference, actor);
+      });
+      api.post('/task-details/:reference/control', async (request) => {
+        const actor = actorFor(request);
+        const params = productReferenceParams.parse(request.params);
+        const body = taskControlBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: `task-control:${params.reference}`,
+          body,
+          operation: () =>
+            runtime.product.controlTask(
+              params.reference,
+              body,
+              actor,
+              request.id,
+            ),
+        });
+      });
+      api.get('/task-details/:reference/evidence', async (request) => {
+        const actor = actorFor(request);
+        assertCapability(actor.role, 'TASK_READ');
+        const params = productReferenceParams.parse(request.params);
+        return runtime.product.taskEvidence(params.reference, actor);
+      });
+      api.post('/task-details/:reference/pipeline/:action', async (request) => {
+        const actor = actorFor(request);
+        const params = actionParams.parse(request.params);
+        const body = pipelineBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: `pipeline:${params.reference}:${params.action}`,
+          body,
+          operation: () =>
+            runtime.product.requestPipelineAction(
+              params.reference,
+              params.action,
+              actor,
+              body.reason,
+            ),
+        });
+      });
+
+      api.get('/channels', async (request) => {
+        return runtime.product.listChannels(actorFor(request));
+      });
+      api.post('/channels/link', async (request) => {
+        const actor = actorFor(request);
+        const body = channelLinkBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: 'channel-link',
+          body,
+          operation: () => runtime.product.linkChannel(body, actor),
+        });
+      });
+      api.post('/channels/:reference/verify', async (request) => {
+        const actor = actorFor(request);
+        const params = productReferenceParams.parse(request.params);
+        const body = channelVerifyBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: `channel-verify:${params.reference}`,
+          body,
+          operation: () =>
+            runtime.product.verifyChannel(params.reference, body.code, actor),
+        });
+      });
+      api.post('/channels/:reference/status', async (request) => {
+        const actor = actorFor(request);
+        const params = productReferenceParams.parse(request.params);
+        const body = channelStatusBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: `channel-status:${params.reference}`,
+          body,
+          operation: () =>
+            runtime.product.setChannelStatus(
+              params.reference,
+              body.status,
+              actor,
+            ),
+        });
+      });
+      api.put('/channel-preferences', async (request) => {
+        const actor = actorFor(request);
+        const body = channelPreferenceSchema.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: 'channel-preference',
+          body,
+          operation: () => runtime.product.setChannelPreference(body, actor),
+        });
+      });
+      api.put('/connectors/:channel', async (request) => {
+        const actor = actorFor(request);
+        const params = connectorParams.parse(request.params);
+        const body = connectorBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: `connector:${params.channel}`,
+          body,
+          operation: () =>
+            runtime.product.configureConnector(params.channel, body, actor),
+        });
+      });
+      api.get('/connectors', async (request) => {
+        return runtime.product.listConnectors(actorFor(request));
+      });
+      api.get('/connectors/:channel', async (request) => {
+        const params = connectorParams.parse(request.params);
+        return runtime.product.getConnector(params.channel, actorFor(request));
+      });
+      api.post('/connectors/:channel/test', async (request) => {
+        const actor = actorFor(request);
+        const params = connectorParams.parse(request.params);
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: `connector-test:${params.channel}`,
+          body: {},
+          operation: () => runtime.product.testConnector(params.channel, actor),
+        });
+      });
+      api.post('/approvals/:approvalId/decision', async (request) => {
+        const actor = actorFor(request);
+        const params = approvalParams.parse(request.params);
+        const body = approvalDecisionBody.parse(bodyValue(request));
+        return idempotent({
+          runtime,
+          request,
+          actor,
+          scope: `approval:${params.approvalId}`,
+          body,
+          operation: async () => {
+            await runtime.approvals.decide({
+              approvalId: params.approvalId,
+              actorId: actor.actorId,
+              token: body.token,
+              approved: body.approved,
+              reason: body.reason,
+            });
+            return {
+              approvalId: params.approvalId,
+              status: body.approved ? 'APPROVED' : 'REJECTED',
+            };
+          },
+        });
+      });
+      api.get('/diagnostics', async (request) => {
+        assertCapability(actorFor(request).role, 'RUNTIME_READ');
+        return runtime.product.doctor();
+      });
+      api.get('/support-bundle', async (request) => {
+        assertCapability(actorFor(request).role, 'RUNTIME_READ');
+        return runtime.product.supportBundle();
+      });
+      api.get('/upgrade/preflight', async (request) => {
+        const actor = actorFor(request);
+        if (actor.role !== 'OPERATOR') {
+          throw new AuthorizationError('Operator authority is required');
+        }
+        return runtime.product.upgradePreflight();
+      });
+
       api.get('/events', async (request) => {
         const actor = actorFor(request);
         assertCapability(actor.role, 'TASK_READ');
@@ -325,6 +726,16 @@ export function registerProductApi(
         const params = taskParams.parse(request.params);
         await assertTaskScope(runtime, actor, params.taskId);
         return runtime.workspaces.get(params.taskId);
+      });
+      api.get('/tasks/:taskId/workspace/context', async (request) => {
+        const actor = actorFor(request);
+        const params = taskParams.parse(request.params);
+        if (!runtime.config.api.socketPath) {
+          throw new ConflictError(
+            'Interactive shell requires a local Unix-socket runtime',
+          );
+        }
+        return runtime.product.workspaceContext(params.taskId, actor);
       });
       api.post('/tasks/:taskId/workspace/bind', async (request) => {
         const actor = actorFor(request);

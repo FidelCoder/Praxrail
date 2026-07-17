@@ -57,6 +57,9 @@ credentials; the reviewer is read-only and neither role has merge authority.
 | Unsafe human return                      | Managed-path checks, tracked/untracked scan, symlink/submodule rejection, secret/path scan, evidence bound  | Workspace remains `HUMAN_OWNED`                              |
 | Output exfiltration or memory exhaustion | Redaction before persistence, 32 KiB chunks, truncation marker, 500-record pages, 2 MiB client response cap | Bounded redacted output only                                 |
 | API resource exhaustion                  | 1 MiB requests, 30-second server timeout, 600 requests per identity per minute                              | Retryable `RATE_LIMITED` response                            |
+| Email or Telegram takeover               | Verified identity digest, revocation state, remote grant token, provider-specific circuit                   | Remote action rejected or connector circuit opens            |
+| Package supply-chain drift               | Packed-file allowlist, source/test/secret exclusion, SHA-256 evidence, npm provenance dry run               | Release gate blocks publishing                               |
+| Support bundle data leak                 | Redacted manifest-only diagnostics, no raw env, no prompts, no provider bodies, no repository contents      | Bundle generation excludes sensitive material                |
 
 The product API is disabled unless explicitly enabled with a bootstrap token.
 Local and remote transports use identical authentication, authorization,

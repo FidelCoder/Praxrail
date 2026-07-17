@@ -28,6 +28,12 @@ import { WorkerLeaseService } from '../src/jobs/worker-lease.js';
 import { Database } from '../src/persistence/database.js';
 import { migrate } from '../src/persistence/migrator.js';
 import { PlannerService } from '../src/planner/planner-service.js';
+import {
+  ChannelDeliveryService,
+  type ChannelGateway,
+} from '../src/communications/channel-delivery-service.js';
+import { RemoteActionService } from '../src/communications/remote-action-service.js';
+import { ProductService } from '../src/product/product-service.js';
 import { RulePlanner } from '../src/planner/rule-planner.js';
 import { PolicyPackService } from '../src/projects/policy-pack-service.js';
 import { PublisherService } from '../src/publishing/publisher-service.js';
@@ -1775,6 +1781,199 @@ describeDatabase('PostgreSQL agentic coding integration', () => {
     } finally {
       await rm(checkout, { recursive: true, force: true });
     }
+  });
+
+  it('runs scoped product tasks, channel verification, and diagnostics', async () => {
+    const identityId = '89898989-8989-4989-8989-898989898989';
+    await database.query(
+      `INSERT INTO api_identities (id, actor_id, role, project_ids)
+       VALUES ($1, 'product-owner', 'OWNER', $2)`,
+      [identityId, [PROJECT_ID]],
+    );
+    const actor = {
+      identityId,
+      tokenId: '78787878-7878-4787-8787-787878787878',
+      actorId: 'product-owner',
+      role: 'OWNER' as const,
+      projectIds: [PROJECT_ID],
+    };
+    const outbox = new OutboxService(database);
+    const product = new ProductService(database, tasks, outbox);
+
+    const created = await product.createTask(
+      {
+        title: 'Exercise product workflow',
+        request: 'Create a safe deterministic product workflow test',
+        projectId: PROJECT_ID,
+        repositoryId: REPOSITORY_ID,
+      },
+      actor,
+    );
+    expect(created).toMatchObject({
+      status: 'INBOX',
+      projectId: PROJECT_ID,
+      repositoryId: REPOSITORY_ID,
+      spentUsd: 0,
+    });
+    expect((await product.getTask(created.taskKey, actor)).id).toBe(created.id);
+
+    const paused = await product.controlTask(
+      created.id,
+      { action: 'pause' },
+      actor,
+    );
+    expect(paused.paused).toBe(true);
+    expect(
+      (await product.controlTask(created.id, { action: 'resume' }, actor))
+        .paused,
+    ).toBe(false);
+
+    const linked = await product.linkChannel(
+      {
+        channel: 'EMAIL',
+        destination: 'owner@example.test',
+        projectId: PROJECT_ID,
+      },
+      actor,
+    );
+    expect(linked).toMatchObject({
+      verificationQueued: true,
+      identity: {
+        channel: 'EMAIL',
+        status: 'PENDING',
+        destinationHint: 'ow***@example.test',
+      },
+    });
+    expect(linked).not.toHaveProperty('verificationCode');
+
+    const queued = await database.query<{
+      payload: { verificationCode?: string };
+    }>(
+      `SELECT payload FROM outbox_events
+       WHERE topic = 'channel.email' AND aggregate_id = $1`,
+      [linked.identity.id],
+    );
+    const verificationCode = queued.rows[0]?.payload.verificationCode ?? '';
+    expect(verificationCode).toHaveLength(24);
+    await product.configureConnector(
+      'EMAIL',
+      {
+        enabled: true,
+        credentialReference: 'secret://test/email-provider',
+      },
+      actor,
+    );
+    const gateway = {
+      send: vi.fn<ChannelGateway['send']>().mockResolvedValue({
+        deliveryId: 'email-delivery-1',
+        threadReference: 'email-thread-1',
+      }),
+    };
+    const delivery = new ChannelDeliveryService(database, outbox, {
+      EMAIL: gateway,
+    });
+    expect(await delivery.deliverBatch('EMAIL', 'email-test-delivery')).toBe(1);
+    const verificationCall = gateway.send.mock.calls[0];
+    if (!verificationCall) {
+      throw new Error('Verification delivery was not sent');
+    }
+    const verificationDelivery = verificationCall[0];
+    expect(verificationDelivery.destination).toBe('owner@example.test');
+    expect(verificationDelivery.text).toContain(verificationCode);
+    const verified = await product.verifyChannel(
+      linked.identity.id,
+      verificationCode,
+      actor,
+    );
+    expect(verified.status).toBe('VERIFIED');
+    await expect(
+      product.verifyChannel(linked.identity.id, verificationCode, actor),
+    ).rejects.toThrow(/invalid, stale, or replayed/);
+
+    const preference = await product.setChannelPreference(
+      {
+        channel: 'EMAIL',
+        projectId: PROJECT_ID,
+        minimumSeverity: 'WARNING',
+        deliveryMode: 'IMMEDIATE',
+        quietHoursStart: '22:00',
+        quietHoursEnd: '06:00',
+        timezone: 'Africa/Nairobi',
+        escalationMinutes: 30,
+      },
+      actor,
+    );
+    expect(preference).toMatchObject({
+      minimumSeverity: 'WARNING',
+      timezone: 'Africa/Nairobi',
+    });
+
+    const queuedNotifications = await delivery.queue({
+      version: 1,
+      eventId: randomUUID(),
+      taskId: created.id,
+      projectId: PROJECT_ID,
+      type: 'TASK_BLOCKED',
+      severity: 'CRITICAL',
+      title: 'Action <required>',
+      summary: 'Review the blocked task without <script>markup</script>.',
+      action: 'STATUS',
+      expiresAt: null,
+    });
+    expect(queuedNotifications).toBe(1);
+    expect(
+      await delivery.deliverBatch('EMAIL', 'email-notification-test'),
+    ).toBe(1);
+    const notificationCall = gateway.send.mock.calls.at(-1);
+    if (!notificationCall) {
+      throw new Error('Notification delivery was not sent');
+    }
+    const notificationDelivery = notificationCall[0];
+    expect(notificationDelivery.html).not.toContain('<script>');
+    expect(notificationDelivery.text).toContain('praxrail task status');
+
+    const remote = new RemoteActionService(
+      database,
+      product,
+      new ApprovalService(database),
+    );
+    const grant = await remote.issueGrant({
+      channelIdentityId: linked.identity.id,
+      taskId: created.id,
+      action: 'PAUSE',
+      policyRevision: 'communications-v1',
+    });
+    const pausedRemotely = await remote.execute({
+      channel: 'EMAIL',
+      externalMessageId: 'email-action-1',
+      sender: 'owner@example.test',
+      threadReference: 'email-thread-1',
+      action: 'PAUSE',
+      task: created.taskKey,
+      grantToken: grant.token,
+      payload: {},
+    });
+    expect(pausedRemotely).toMatchObject({
+      action: 'PAUSE',
+      task: { paused: true },
+    });
+    await expect(
+      remote.execute({
+        channel: 'EMAIL',
+        externalMessageId: 'email-action-1',
+        sender: 'owner@example.test',
+        threadReference: 'email-thread-1',
+        action: 'PAUSE',
+        task: created.taskKey,
+        grantToken: grant.token,
+        payload: {},
+      }),
+    ).rejects.toThrow(/stale or replayed/);
+
+    const diagnostics = await product.doctor();
+    expect(diagnostics.databaseVersion).toBe('007_product_workflows.sql');
+    const bundle = await product.supportBundle();
+    expect(JSON.stringify(bundle)).not.toContain('owner@example.test');
   });
 });
 

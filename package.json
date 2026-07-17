@@ -1,15 +1,18 @@
 {
   "name": "praxrail",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Autonomous agentic coding tool for tested, independently reviewed software changes across repositories.",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22.12"
   },
   "packageManager": "pnpm@10.24.0",
   "scripts": {
+    "artifacts:cli": "tsx scripts/generate-cli-artifacts.ts",
     "boundaries": "tsx scripts/check-package-boundaries.ts",
+    "package:verify": "pnpm build:packages && pnpm artifacts:cli && tsx scripts/verify-package-contents.ts",
     "build": "pnpm build:packages && tsc -p tsconfig.build.json",
     "build:packages": "pnpm --filter @praxrail/core build && pnpm --filter @praxrail/client build && pnpm --filter @praxrail/cli build",
     "cli": "tsx packages/cli/src/bin.ts",
