@@ -6,7 +6,7 @@ import path from 'node:path';
 import {
   assertWorkspaceOwnershipTransition,
   workerRegistrationSchema,
-} from '@praxrail/core';
+} from 'praxrail-core';
 import { describe, expect, it, vi } from 'vitest';
 import {
   PraxrailClient,

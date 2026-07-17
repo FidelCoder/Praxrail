@@ -5,7 +5,7 @@ import {
   type Worker,
   type WorkerAssignment,
   type WorkerRegistration,
-} from '@praxrail/core';
+} from 'praxrail-core';
 import type pg from 'pg';
 import {
   AuthorizationError,

@@ -35,7 +35,7 @@ import {
   type WorkerAssignment,
   type WorkerRegistrationInput,
   type WorkspaceOwnership,
-} from '@praxrail/core';
+} from 'praxrail-core';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
@@ -724,7 +724,7 @@ export class PraxrailClient {
     const headers: Record<string, string> = {
       accept: 'application/json',
       authorization: `Bearer ${this.options.token}`,
-      'user-agent': '@praxrail/client/0.3.0',
+      'user-agent': 'praxrail-client/0.3.0',
     };
     if (body !== undefined) headers['content-type'] = 'application/json';
     if (idempotencyKey !== undefined) {

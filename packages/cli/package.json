@@ -1,5 +1,5 @@
 {
-  "name": "@praxrail/cli",
+  "name": "praxrail",
   "version": "0.3.0",
   "private": false,
   "description": "Terminal interface for Praxrail.",
@@ -25,18 +25,21 @@
       "default": "./dist/index.js"
     }
   },
-  "files": [
-    "dist",
-    "completions",
-    "man"
-  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run --root ../.. tests/product-packages.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@praxrail/client": "workspace:*",
-    "@praxrail/core": "workspace:*"
-  }
+    "praxrail-client": "workspace:*",
+    "praxrail-core": "workspace:*"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "completions",
+    "man"
+  ]
 }

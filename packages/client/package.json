@@ -1,5 +1,5 @@
 {
-  "name": "@praxrail/client",
+  "name": "praxrail-client",
   "version": "0.3.0",
   "private": false,
   "description": "Typed local and remote client for Praxrail.",
@@ -22,16 +22,19 @@
       "default": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run --root ../.. tests/product-packages.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@praxrail/core": "workspace:*",
+    "praxrail-core": "workspace:*",
     "zod": "4.4.3"
-  }
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ]
 }

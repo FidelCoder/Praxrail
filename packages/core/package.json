@@ -1,5 +1,5 @@
 {
-  "name": "@praxrail/core",
+  "name": "praxrail-core",
   "version": "0.3.0",
   "private": false,
   "description": "Transport-independent Praxrail product contracts.",
@@ -22,9 +22,6 @@
       "default": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run --root ../.. tests/product-packages.test.ts",
@@ -32,5 +29,11 @@
   },
   "dependencies": {
     "zod": "4.4.3"
-  }
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ]
 }

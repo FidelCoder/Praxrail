@@ -6,7 +6,7 @@ import {
   PraxrailClientError,
   ProfileStore,
   type PraxrailClientOptions,
-} from '@praxrail/client';
+} from 'praxrail-client';
 import { runProductCommand } from './product-commands.js';
 import {
   readRuntimeLog,

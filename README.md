@@ -24,8 +24,8 @@ The implementation includes:
 - fail-closed configuration with merge, production deployment, and external
   integrations disabled by default.
 
-The terminal product is organized as `@praxrail/core`, `@praxrail/client`, and
-`@praxrail/cli` workspaces around the compatibility runtime. Active developers
+The terminal product is organized as `praxrail-core`, `praxrail-client`, and
+`praxrail` workspaces around the compatibility runtime. Active developers
 operate Praxrail from the shell; email and Telegram provide notifications,
 approvals, clarifications, and concise remote actions.
 

@@ -2,9 +2,9 @@
 
 Praxrail is shipped as three public packages:
 
-- `@praxrail/core` for shared schemas and contracts;
-- `@praxrail/client` for typed local or remote runtime access; and
-- `@praxrail/cli` for the `praxrail` terminal command.
+- `praxrail-core` for shared schemas and contracts;
+- `praxrail-client` for typed local or remote runtime access; and
+- `praxrail` for the `praxrail` terminal command.
 
 The source tree currently builds and verifies the packages locally. Registry
 publication is gated by the release workflow and npm provenance evidence.

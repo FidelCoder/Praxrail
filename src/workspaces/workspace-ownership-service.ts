@@ -6,7 +6,7 @@ import {
   type ApiActor,
   type WorkspaceOwnership,
   type WorkspaceOwnershipState,
-} from '@praxrail/core';
+} from 'praxrail-core';
 import type pg from 'pg';
 import { ConflictError, NotFoundError } from '../domain/errors.js';
 import type { Database } from '../persistence/database.js';

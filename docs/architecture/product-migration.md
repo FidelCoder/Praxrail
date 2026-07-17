@@ -5,30 +5,30 @@ boundaries are introduced incrementally.
 
 ## Ownership Map
 
-| Current area                              | Target owner                              | Migration rule                                                          |
-| ----------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------- |
-| `src/domain`, permissions, shared schemas | `@praxrail/core`                          | Move stable transport-independent contracts first; keep re-export shims |
-| HTTP and runtime composition              | compatibility runtime                     | Expose application services through `/api/v1`; retain webhook routes    |
-| Direct operator scripts                   | `@praxrail/cli`                           | Replace only after equivalent authorized API command exists             |
-| New API consumers                         | `@praxrail/client`                        | No direct HTTP or PostgreSQL access outside the client/runtime          |
-| Process lifecycle                         | `@praxrail/cli` plus runtime process lock | Keep root `dist/index.js` as the compatibility entry                    |
-| Repository execution                      | worker protocol                           | Reuse worktrees, runner, agents, verification, review, and publisher    |
-| Telegram and email                        | connector modules                         | Route shared actions through application services                       |
+| Current area                              | Target owner                         | Migration rule                                                          |
+| ----------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
+| `src/domain`, permissions, shared schemas | `praxrail-core`                      | Move stable transport-independent contracts first; keep re-export shims |
+| HTTP and runtime composition              | compatibility runtime                | Expose application services through `/api/v1`; retain webhook routes    |
+| Direct operator scripts                   | `praxrail`                           | Replace only after equivalent authorized API command exists             |
+| New API consumers                         | `praxrail-client`                    | No direct HTTP or PostgreSQL access outside the client/runtime          |
+| Process lifecycle                         | `praxrail` plus runtime process lock | Keep root `dist/index.js` as the compatibility entry                    |
+| Repository execution                      | worker protocol                      | Reuse worktrees, runner, agents, verification, review, and publisher    |
+| Telegram and email                        | connector modules                    | Route shared actions through application services                       |
 
 ## Package Dependency Direction
 
 ```text
-@praxrail/core
+praxrail-core
       ^
       |
-@praxrail/client
+praxrail-client
       ^
       |
-@praxrail/cli
+praxrail
 
-compatibility runtime -> @praxrail/core
+compatibility runtime -> praxrail-core
 connectors -> runtime application services
-workers -> @praxrail/client + @praxrail/core
+workers -> praxrail-client + praxrail-core
 ```
 
 Core and client packages may not import Fastify, PostgreSQL, GitHub, Telegram,

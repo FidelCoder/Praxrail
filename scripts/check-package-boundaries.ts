@@ -14,11 +14,11 @@ const boundaries: Boundary[] = [
   },
   {
     directory: path.resolve('packages/client/src'),
-    allowedPackages: new Set(['@praxrail/core', 'zod']),
+    allowedPackages: new Set(['praxrail-core', 'zod']),
   },
   {
     directory: path.resolve('packages/cli/src'),
-    allowedPackages: new Set(['@praxrail/client', '@praxrail/core']),
+    allowedPackages: new Set(['praxrail-client', 'praxrail-core']),
   },
 ];
 

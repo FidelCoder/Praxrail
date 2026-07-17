@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import type { ApiActor } from '@praxrail/core';
+import type { ApiActor } from 'praxrail-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/http/app.js';
 import { Metrics } from '../src/observability/metrics.js';

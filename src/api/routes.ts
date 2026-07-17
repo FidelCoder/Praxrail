@@ -7,7 +7,7 @@ import {
   workerRegistrationSchema,
   workspaceActionSchema,
   type ApiActor,
-} from '@praxrail/core';
+} from 'praxrail-core';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import {

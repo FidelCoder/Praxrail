@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
-import { actorRoleSchema, type ActorRole } from '@praxrail/core';
+import { actorRoleSchema, type ActorRole } from 'praxrail-core';
 import { z } from 'zod';
 
 const booleanValue = z.preprocess((value: unknown): unknown => {

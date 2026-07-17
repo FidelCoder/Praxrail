@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { TaskEvent, TaskOutputChunk } from '@praxrail/core';
+import type { TaskEvent, TaskOutputChunk } from 'praxrail-core';
 import type { Database } from '../persistence/database.js';
 import { redactText } from '../observability/redaction.js';
 

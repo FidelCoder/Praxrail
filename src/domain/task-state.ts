@@ -1,8 +1,8 @@
-import type { TaskStatus } from '@praxrail/core';
+import type { TaskStatus } from 'praxrail-core';
 import { DomainError } from './errors.js';
 import { validateReadyContract, type TaskContract } from './task-contract.js';
 
-export { TASK_STATUSES, type TaskStatus } from '@praxrail/core';
+export { TASK_STATUSES, type TaskStatus } from 'praxrail-core';
 
 const transitions: Readonly<Record<TaskStatus, readonly TaskStatus[]>> = {
   INBOX: ['REFINING', 'CANCELLED', 'SUPERSEDED'],

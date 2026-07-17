@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { actorRoleSchema, type ActorRole, type ApiActor } from '@praxrail/core';
+import { actorRoleSchema, type ActorRole, type ApiActor } from 'praxrail-core';
 import { AuthenticationError, NotFoundError } from '../domain/errors.js';
 import type { Database } from '../persistence/database.js';
 

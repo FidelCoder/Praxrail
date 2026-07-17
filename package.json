@@ -1,5 +1,5 @@
 {
-  "name": "praxrail",
+  "name": "praxrail-workspace",
   "version": "0.3.0",
   "private": true,
   "description": "Autonomous agentic coding tool for tested, independently reviewed software changes across repositories.",
@@ -14,7 +14,7 @@
     "boundaries": "tsx scripts/check-package-boundaries.ts",
     "package:verify": "pnpm build:packages && pnpm artifacts:cli && tsx scripts/verify-package-contents.ts",
     "build": "pnpm build:packages && tsc -p tsconfig.build.json",
-    "build:packages": "pnpm --filter @praxrail/core build && pnpm --filter @praxrail/client build && pnpm --filter @praxrail/cli build",
+    "build:packages": "pnpm --filter praxrail-core build && pnpm --filter praxrail-client build && pnpm --filter praxrail build",
     "cli": "tsx packages/cli/src/bin.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:reset:test": "tsx scripts/reset-test-database.ts",
@@ -32,11 +32,11 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "pnpm typecheck:packages && tsc --noEmit",
-    "typecheck:packages": "pnpm build:packages && pnpm --filter @praxrail/core typecheck && pnpm --filter @praxrail/client typecheck && pnpm --filter @praxrail/cli typecheck",
+    "typecheck:packages": "pnpm build:packages && pnpm --filter praxrail-core typecheck && pnpm --filter praxrail-client typecheck && pnpm --filter praxrail typecheck",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build"
   },
   "dependencies": {
-    "@praxrail/core": "workspace:*",
+    "praxrail-core": "workspace:*",
     "@octokit/app": "^16.1.2",
     "@octokit/webhooks": "^14.2.0",
     "@openai/codex-sdk": "^0.144.5",

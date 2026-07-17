@@ -3,7 +3,7 @@ import {
   remoteActionSchema,
   type ApiActor,
   type RemoteAction,
-} from '@praxrail/core';
+} from 'praxrail-core';
 import { z } from 'zod';
 import { ConflictError, NotFoundError } from '../domain/errors.js';
 import type { Database } from '../persistence/database.js';

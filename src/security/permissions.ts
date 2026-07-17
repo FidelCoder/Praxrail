@@ -1,4 +1,4 @@
-import { CAPABILITIES, type ActorRole, type Capability } from '@praxrail/core';
+import { CAPABILITIES, type ActorRole, type Capability } from 'praxrail-core';
 import { AuthorizationError } from '../domain/errors.js';
 
 export {
@@ -6,7 +6,7 @@ export {
   CAPABILITIES,
   type ActorRole,
   type Capability,
-} from '@praxrail/core';
+} from 'praxrail-core';
 
 const permissions: Readonly<Record<ActorRole, readonly Capability[]>> = {
   OWNER: [

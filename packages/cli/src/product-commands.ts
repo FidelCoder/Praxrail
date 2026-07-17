@@ -1,5 +1,5 @@
-import type { PraxrailClient } from '@praxrail/client';
-import type { TaskStatus } from '@praxrail/core';
+import type { PraxrailClient } from 'praxrail-client';
+import type { TaskStatus } from 'praxrail-core';
 
 export interface ProductCommandOptions {
   project?: string;

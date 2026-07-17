@@ -9,6 +9,7 @@ const forbidden = [
   /(^|\/)\.env(?:\.|$)/,
   /(^|\/)(?:test|tests|fixtures)(\/|$)/,
   /\.(?:pem|key|p12|log)$/i,
+  /\.tsbuildinfo$/,
   /(^|\/)src(\/|$)/,
   /(^|\/)node_modules(\/|$)/,
   /profiles\.json$/,

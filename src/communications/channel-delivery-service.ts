@@ -1,8 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import {
-  notificationEventSchema,
-  type NotificationEvent,
-} from '@praxrail/core';
+import { notificationEventSchema, type NotificationEvent } from 'praxrail-core';
 import { DateTime } from 'luxon';
 import { z } from 'zod';
 import type { Database } from '../persistence/database.js';

@@ -10,7 +10,7 @@ import type {
   TaskDetail,
   TaskEvidence,
   TaskStatus,
-} from '@praxrail/core';
+} from 'praxrail-core';
 import {
   AuthorizationError,
   ConflictError,
