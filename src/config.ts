@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
+import { actorRoleSchema, type ActorRole } from '@praxrail/core';
 import { z } from 'zod';
 
 const booleanValue = z.preprocess((value: unknown): unknown => {
@@ -46,6 +47,7 @@ const secretFileMappings = [
   ['GITHUB_WEBHOOK_SECRET', 'GITHUB_WEBHOOK_SECRET_FILE'],
   ['CODEX_BUILDER_API_KEY', 'CODEX_BUILDER_API_KEY_FILE'],
   ['CODEX_REVIEWER_API_KEY', 'CODEX_REVIEWER_API_KEY_FILE'],
+  ['API_BOOTSTRAP_TOKEN', 'API_BOOTSTRAP_TOKEN_FILE'],
 ] as const;
 
 function loadSecretFiles(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
@@ -68,6 +70,17 @@ const environmentSchema = z
       .default('development'),
     HOST: z.string().default('0.0.0.0'),
     PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+    API_ENABLED: booleanValue.default(false),
+    API_SOCKET_PATH: z.preprocess(
+      (value: unknown): unknown => (value === '' ? undefined : value),
+      z.string().min(1).max(1_000).optional(),
+    ),
+    API_BOOTSTRAP_TOKEN: z.preprocess(
+      (value: unknown): unknown => (value === '' ? undefined : value),
+      z.string().min(32).optional(),
+    ),
+    API_BOOTSTRAP_ACTOR_ID: z.string().min(1).max(200).default('local-owner'),
+    API_BOOTSTRAP_ROLE: actorRoleSchema.default('OWNER'),
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
@@ -120,6 +133,14 @@ const environmentSchema = z
     OTEL_SERVICE_NAME: z.string().min(1).default('praxrail'),
   })
   .superRefine((value, context) => {
+    if (value.API_ENABLED && !value.API_BOOTSTRAP_TOKEN) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'API_BOOTSTRAP_TOKEN is required when the product API is enabled',
+        path: ['API_BOOTSTRAP_TOKEN'],
+      });
+    }
     if (value.TELEGRAM_ENABLED) {
       for (const [field, valid] of [
         ['TELEGRAM_BOT_TOKEN', Boolean(value.TELEGRAM_BOT_TOKEN)],
@@ -210,6 +231,13 @@ export interface AppConfig {
   host: string;
   port: number;
   logLevel: string;
+  api: {
+    enabled: boolean;
+    socketPath?: string;
+    bootstrapToken?: string;
+    bootstrapActorId: string;
+    bootstrapRole: ActorRole;
+  };
   database: {
     url: string;
     migrationUrl?: string;
@@ -286,6 +314,22 @@ export function loadConfig(
     host: value.HOST,
     port: value.PORT,
     logLevel: value.LOG_LEVEL,
+    api: preventSecretSerialization({
+      enabled: value.API_ENABLED,
+      ...(value.API_SOCKET_PATH
+        ? {
+            socketPath: safeRoot(
+              resolveFromWorkingDirectory(value.API_SOCKET_PATH),
+              'API_SOCKET_PATH',
+            ),
+          }
+        : {}),
+      ...(value.API_BOOTSTRAP_TOKEN
+        ? { bootstrapToken: value.API_BOOTSTRAP_TOKEN }
+        : {}),
+      bootstrapActorId: value.API_BOOTSTRAP_ACTOR_ID,
+      bootstrapRole: value.API_BOOTSTRAP_ROLE,
+    }),
     database: {
       url: value.DATABASE_URL,
       ...(value.MIGRATION_DATABASE_URL

@@ -22,6 +22,20 @@ export class AuthorizationError extends DomainError {
   }
 }
 
+export class InvalidRequestError extends DomainError {
+  constructor(message = 'The request is invalid') {
+    super(message, 'INVALID_REQUEST');
+    this.name = 'InvalidRequestError';
+  }
+}
+
+export class RateLimitError extends DomainError {
+  constructor(message = 'Request rate limit exceeded') {
+    super(message, 'RATE_LIMITED');
+    this.name = 'RateLimitError';
+  }
+}
+
 export class ConflictError extends DomainError {
   constructor(message: string) {
     super(message, 'CONFLICT');

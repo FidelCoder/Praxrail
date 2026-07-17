@@ -24,6 +24,10 @@ The implementation includes:
 - fail-closed configuration with merge, production deployment, and external
   integrations disabled by default.
 
+The terminal product is organized as `@praxrail/core`, `@praxrail/client`, and
+`@praxrail/cli` workspaces around the compatibility runtime. During source
+development, run `pnpm cli -- version` to exercise the CLI entry point.
+
 ## Local Development
 
 Requirements: Node.js 22.12+, pnpm 10+, and Docker with Compose.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { redactSensitive } from '../src/observability/redaction.js';
+import { redactSensitive, redactText } from '../src/observability/redaction.js';
 
 describe('log redaction', () => {
   it('redacts sensitive keys recursively while retaining diagnostic fields', () => {
@@ -19,5 +19,13 @@ describe('log redaction', () => {
       },
       entries: [{ token: '[REDACTED]', code: 'AUTH_FAILED' }],
     });
+  });
+
+  it('redacts bearer and Praxrail tokens from streamed text', () => {
+    expect(
+      redactText(
+        `Authorization: Bearer secret-value pxr_${'a'.repeat(40)} password=hunter2`,
+      ),
+    ).not.toMatch(/secret-value|pxr_|hunter2/);
   });
 });

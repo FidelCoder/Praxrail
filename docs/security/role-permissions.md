@@ -14,3 +14,21 @@
 
 State changes are exposed only as domain commands that evaluate actor, current
 state, policy, idempotency, approval, and budget in one transaction.
+
+## Terminal Product API
+
+| Capability                                   | Owner | Developer | Reviewer | Worker                     | Operator |
+| -------------------------------------------- | ----- | --------- | -------- | -------------------------- | -------- |
+| Runtime status                               | Yes   | Yes       | No       | Yes                        | Yes      |
+| Project-scoped task/events/output read       | Yes   | Yes       | Yes      | Assigned                   | Yes      |
+| Register, heartbeat, and claim worker work   | No    | No        | No       | Own identity               | Yes      |
+| Request and return human workspace ownership | Yes   | Yes       | No       | Pause acknowledgement only | Yes      |
+| Bind or resume agent workspace ownership     | No    | No        | No       | Own active assignment      | Yes      |
+| Drain or revoke workers                      | No    | No        | No       | No                         | Yes      |
+| Recover expired or revoked ownership         | No    | No        | No       | No                         | Yes      |
+| Rotate or revoke own API token               | Yes   | Yes       | Yes      | Yes                        | Yes      |
+
+Bearer tokens are stored only as SHA-256 digests. Each identity has a role and
+optional project scope. Authorization runs before service execution; worker
+operations additionally require identity match, active lease, repository scope,
+profile compatibility, assignment fence, and repository fence.

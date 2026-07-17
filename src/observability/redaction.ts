@@ -1,6 +1,20 @@
 const sensitiveKey =
   /(?:authorization|token|secret|password|private[_-]?key|cookie)/i;
 
+const sensitiveTextPatterns = [
+  /\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi,
+  /\bpxr_[A-Za-z0-9_-]{20,}\b/g,
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
+  /\b(?:token|secret|password|private[_-]?key)\s*[=:]\s*[^\s,;]+/gi,
+];
+
+export function redactText(value: string): string {
+  return sensitiveTextPatterns.reduce(
+    (redacted, pattern) => redacted.replace(pattern, '[REDACTED]'),
+    value,
+  );
+}
+
 export function redactSensitive(value: unknown, depth = 0): unknown {
   if (depth > 8) return '[TRUNCATED]';
   if (Array.isArray(value))

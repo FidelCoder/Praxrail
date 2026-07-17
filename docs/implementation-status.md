@@ -44,7 +44,7 @@ substitute for external sandbox evidence or owner signoff.
 | PXR-072 | Procedures implemented; drill operator-gated     | Encrypted backup/restore scripts and runbooks exist; off-host backup and clean restore drill remain                   |
 | PXR-073 | Operator-gated                                   | Pilot protocol exists; agreed sample, task evidence, metrics, and recommendation remain                               |
 
-## Post-MVP
+## Existing Extended Capabilities
 
 | Chunk   | Status                              | Evidence or gate                                                                                              |
 | ------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -60,3 +60,29 @@ Telegram, GitHub, OpenAI, DNS/TLS, target-repository onboarding, sandbox
 acceptance, VPS/reboot, off-host restore, and pilot resources remain disabled
 until a human operator records redacted evidence. No placeholder credential,
 generated runbook, fake adapter, or local test is treated as that evidence.
+
+## Terminal Product Foundation
+
+| Chunk   | Status      | Deterministic evidence                                                                                                                                |
+| ------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PXR-200 | Implemented | Product contract, surface ownership, deployment/support matrix, and ADR 0004                                                                          |
+| PXR-201 | Implemented | Current-to-target ownership map, dependency direction, compatibility sequence, and forward-only migration policy                                      |
+| PXR-202 | Implemented | Versioned command grammar, flags, output, exit codes, confirmation policy, and transcripts                                                            |
+| PXR-203 | Implemented | OpenAPI v1 contract, shared Zod schemas, Unix/HTTPS transports, scoped identity, rotation/revocation, cursors, limits, and compatibility policy       |
+| PXR-204 | Implemented | Fenced ownership state machine, lease rules, invalid transitions, crash recovery, and returned-workspace safety contract                              |
+| PXR-205 | Implemented | Channel-neutral identity, action, routing, replay, expiry, preference, and redaction contract                                                         |
+| PXR-210 | Implemented | Core/client/CLI workspace packages, public exports, compatibility runtime, package builds/tests, and compiler-backed boundary check                   |
+| PXR-211 | Implemented | Authenticated `/api/v1`, project/role scope, normalized errors, idempotent mutations, audit actors, limits, Unix socket, and remote listener          |
+| PXR-212 | Implemented | Typed local/remote transport, profiles, mode-0600 token fallback, bounded retries, token rotation/revocation, events, output, fake transport tests    |
+| PXR-213 | Implemented | Injectable CLI foundation, global flags, human/quiet/JSON output, stable exit codes, timeout validation, help/version behavior, and command tests     |
+| PXR-214 | Implemented | Serve/start/stop/restart/status/logs, PID lock, protected socket, readiness wait, graceful shutdown, stale-lock recovery, systemd/launchd definitions |
+| PXR-220 | Implemented | Identity-bound embedded/remote workers, repository/profile routing, heartbeats, drain/revocation, task/attempt/repository fences, and mismatch tests  |
+| PXR-221 | Implemented | Durable attach/pause/human/return/resume/recover service, process cancellation state, managed paths, diff digest, symlink/submodule/secret checks     |
+| PXR-222 | Implemented | Ordered durable event and separately redacted output cursors, bounded pages/chunks, truncation markers, cancellation-aware watches, resume tests      |
+| PXR-223 | Implemented | Dependency-gated claims, independent repository locks, restart/lease reconciliation, recovery-required state, and attributable operator recovery      |
+
+Verification evidence is produced by `pnpm verify`, the PostgreSQL integration
+suite against a freshly migrated `praxrail_test`, the package-level acceptance
+commands, container build, installed CLI smoke test, and runtime image smoke
+test. External GitHub, Telegram, email, Codex, TLS, and pilot gates remain
+tracked separately and are not claimed by these chunks.

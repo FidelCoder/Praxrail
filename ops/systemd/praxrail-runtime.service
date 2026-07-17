@@ -1,0 +1,26 @@
+[Unit]
+Description=Praxrail terminal product runtime
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=praxrail
+Group=praxrail
+EnvironmentFile=/etc/praxrail/runtime.env
+Environment=PRAXRAIL_STATE_HOME=/var/lib/praxrail
+ExecStart=/usr/local/bin/praxrail runtime serve
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+StateDirectory=praxrail
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/praxrail
+
+[Install]
+WantedBy=multi-user.target

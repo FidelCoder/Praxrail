@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { ApiAuthService } from '../src/api/auth-service.js';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
@@ -55,6 +56,9 @@ import { IncomingMessageService } from '../src/services/incoming-message-service
 import { OutboxService } from '../src/services/outbox-service.js';
 import { TaskQueryService } from '../src/services/task-query-service.js';
 import { TaskService } from '../src/services/task-service.js';
+import { EventStreamService } from '../src/runtime/event-stream-service.js';
+import { WorkerRegistryService } from '../src/workers/worker-registry-service.js';
+import { WorkspaceOwnershipService } from '../src/workspaces/workspace-ownership-service.js';
 import {
   FakeDeploymentAdapter,
   FakeNotificationGateway,
@@ -92,7 +96,7 @@ describeDatabase('PostgreSQL agentic coding integration', () => {
 
   beforeEach(async () => {
     await migrationDatabase.query(
-      'TRUNCATE projects, incoming_messages, idempotency_keys, outbox_events, webhook_deliveries CASCADE',
+      'TRUNCATE projects, api_identities, incoming_messages, idempotency_keys, outbox_events, webhook_deliveries, runtime_events CASCADE',
     );
     await database.query(
       `INSERT INTO projects (id, slug, name) VALUES ($1, 'sample-suite', 'Sample Suite')`,
@@ -1121,6 +1125,347 @@ describeDatabase('PostgreSQL agentic coding integration', () => {
     } finally {
       await rm(checkout, { recursive: true, force: true });
     }
+  });
+
+  it('routes dependency-ready work and fences developer handoff through recovery', async () => {
+    const auth = new ApiAuthService(database);
+    const operatorToken = `pxr_${'o'.repeat(40)}`;
+    const workerToken = `pxr_${'w'.repeat(40)}`;
+    const developerToken = `pxr_${'d'.repeat(40)}`;
+    await auth.provisionBootstrap({
+      token: operatorToken,
+      actorId: 'operator-product',
+      role: 'OPERATOR',
+    });
+    await auth.provisionBootstrap({
+      token: workerToken,
+      actorId: 'worker-product',
+      role: 'WORKER',
+      projectIds: [PROJECT_ID],
+    });
+    await auth.provisionBootstrap({
+      token: developerToken,
+      actorId: 'developer-product',
+      role: 'DEVELOPER',
+      projectIds: [PROJECT_ID],
+    });
+    const operator = await auth.authenticate(operatorToken);
+    const workerActor = await auth.authenticate(workerToken);
+    const developer = await auth.authenticate(developerToken);
+
+    const prerequisite = await tasks.createInboxTask({
+      provider: 'TELEGRAM',
+      externalMessageId: 'product-prerequisite',
+      senderId: '42',
+      authenticated: true,
+      envelope: { update_id: 901 },
+      messageText: 'Prepare the shared contract',
+      title: 'Prepare the shared contract',
+      actorType: 'OWNER',
+      actorId: '42',
+    });
+    const dependent = await tasks.createInboxTask({
+      provider: 'TELEGRAM',
+      externalMessageId: 'product-dependent',
+      senderId: '42',
+      authenticated: true,
+      envelope: { update_id: 902 },
+      messageText: 'Use the shared contract',
+      title: 'Use the shared contract',
+      actorType: 'OWNER',
+      actorId: '42',
+    });
+    await tasks.addDependency(
+      dependent.task.id,
+      prerequisite.task.id,
+      'PLANNER',
+      'planner-product',
+      randomUUID(),
+    );
+    const refining = await tasks.transition({
+      taskId: dependent.task.id,
+      expectedStatus: 'INBOX',
+      expectedVersion: dependent.task.version,
+      to: 'REFINING',
+      actorRole: 'OPERATOR',
+      actorId: operator.actorId,
+      correlationId: randomUUID(),
+    });
+    await tasks.transition({
+      taskId: refining.id,
+      expectedStatus: 'REFINING',
+      expectedVersion: refining.version,
+      to: 'READY',
+      actorRole: 'PLANNER',
+      actorId: 'planner-product',
+      correlationId: randomUUID(),
+      contract: taskContract({ dependencyTaskIds: [prerequisite.task.id] }),
+    });
+
+    const workers = new WorkerRegistryService(database);
+    const worker = await workers.register(
+      {
+        name: 'product-worker',
+        mode: 'REMOTE',
+        version: '0.2.0',
+        profiles: ['frontend'],
+        repositoryIds: [REPOSITORY_ID],
+        capabilities: ['git', 'codex', 'docker'],
+        leaseMilliseconds: 60_000,
+      },
+      workerActor,
+    );
+    expect(
+      await workers.claim({
+        workerId: worker.id,
+        fencingToken: worker.fencingToken,
+        leaseMilliseconds: 60_000,
+        actor: workerActor,
+        correlationId: randomUUID(),
+      }),
+    ).toBeNull();
+
+    await database.query(
+      `UPDATE tasks SET status = 'VERIFIED', completed_at = now()
+       WHERE id = $1`,
+      [prerequisite.task.id],
+    );
+    const mismatched = await workers.register(
+      {
+        name: 'product-worker-mismatch',
+        mode: 'EMBEDDED',
+        version: '0.2.0',
+        profiles: ['backend'],
+        repositoryIds: [REPOSITORY_ID],
+        capabilities: [],
+        leaseMilliseconds: 60_000,
+      },
+      workerActor,
+    );
+    expect(
+      await workers.claim({
+        workerId: mismatched.id,
+        fencingToken: mismatched.fencingToken,
+        leaseMilliseconds: 60_000,
+        actor: workerActor,
+        correlationId: randomUUID(),
+      }),
+    ).toBeNull();
+    await expect(
+      workers.setStatus(mismatched.id, 'DRAINING', workerActor),
+    ).rejects.toThrow(/Only an operator/);
+    await workers.setStatus(mismatched.id, 'REVOKED', operator);
+    await expect(
+      workers.heartbeat({
+        workerId: mismatched.id,
+        fencingToken: mismatched.fencingToken,
+        leaseMilliseconds: 60_000,
+        actor: workerActor,
+      }),
+    ).rejects.toThrow(/fencing token/);
+    await expect(
+      workers.register(
+        {
+          name: mismatched.name,
+          mode: 'EMBEDDED',
+          version: '0.2.0',
+          profiles: ['backend'],
+          repositoryIds: [REPOSITORY_ID],
+          capabilities: [],
+          leaseMilliseconds: 60_000,
+        },
+        workerActor,
+      ),
+    ).rejects.toThrow(/revoked identity/);
+    const assignment = await workers.claim({
+      workerId: worker.id,
+      fencingToken: worker.fencingToken,
+      leaseMilliseconds: 60_000,
+      actor: workerActor,
+      correlationId: randomUUID(),
+    });
+    expect(assignment?.repositoryId).toBe(REPOSITORY_ID);
+    if (!assignment) throw new Error('Expected a worker assignment');
+    expect((await tasks.getTask(dependent.task.id)).status).toBe('BUILDING');
+
+    const events = new EventStreamService(database);
+    const eventPage = await events.events({
+      cursor: 0,
+      taskId: dependent.task.id,
+      limit: 100,
+    });
+    expect(
+      eventPage.events.some((event) => event.eventType === 'TASK_CLAIMED'),
+    ).toBe(true);
+    const outputId = await events.appendOutput({
+      taskId: dependent.task.id,
+      attemptId: assignment.attemptId,
+      stream: 'STDOUT',
+      content: `Bearer secret-value pxr_${'s'.repeat(40)}`,
+    });
+    const output = await events.output({
+      cursor: 0,
+      taskId: dependent.task.id,
+      limit: 100,
+    });
+    expect(output.nextCursor).toBe(outputId);
+    expect(output.chunks[0]?.content).not.toMatch(/secret-value|pxr_/);
+    const truncatedOutputId = await events.appendOutput({
+      taskId: dependent.task.id,
+      attemptId: assignment.attemptId,
+      stream: 'STDERR',
+      content: 'x'.repeat(40_000),
+    });
+    const resumedOutput = await events.output({
+      cursor: output.nextCursor,
+      taskId: dependent.task.id,
+      limit: 100,
+    });
+    expect(resumedOutput.nextCursor).toBe(truncatedOutputId);
+    expect(resumedOutput.chunks[0]).toMatchObject({
+      truncated: true,
+      stream: 'STDERR',
+    });
+    expect(resumedOutput.chunks[0]?.content).toContain(
+      '[Praxrail output truncated]',
+    );
+
+    const checkout = await mkdtemp(path.join(tmpdir(), 'praxrail-handoff-'));
+    const git = new GitClient();
+    try {
+      await git.run(['init', '-b', 'main'], { cwd: checkout });
+      await writeFile(path.join(checkout, 'README.md'), 'before\n');
+      await git.run(['add', 'README.md'], { cwd: checkout });
+      await git.run(
+        [
+          '-c',
+          'user.name=Praxrail Test',
+          '-c',
+          'user.email=test@example.com',
+          'commit',
+          '-m',
+          'base',
+        ],
+        { cwd: checkout },
+      );
+      const baseSha = await git.headSha(checkout);
+      const gitRefId = randomUUID();
+      await database.query(
+        `INSERT INTO git_refs
+          (id, task_id, attempt_id, repository_id, base_sha, branch_name,
+           worktree_path, fencing_token, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ACTIVE')`,
+        [
+          gitRefId,
+          dependent.task.id,
+          assignment.attemptId,
+          REPOSITORY_ID,
+          baseSha,
+          `praxrail/${dependent.task.taskKey.toLowerCase()}-handoff`,
+          checkout,
+          assignment.fencingToken,
+        ],
+      );
+      const workspaces = new WorkspaceOwnershipService(database, tmpdir(), git);
+      await workspaces.bindGitRef({
+        taskId: dependent.task.id,
+        gitRefId,
+        workerId: worker.id,
+        fencingToken: assignment.fencingToken,
+        actor: workerActor,
+      });
+      expect(
+        (
+          await workspaces.requestAttach({
+            taskId: dependent.task.id,
+            actor: developer,
+            reason: 'Developer needs to adjust the implementation',
+            leaseMilliseconds: 120_000,
+            correlationId: randomUUID(),
+          })
+        ).state,
+      ).toBe('PAUSING');
+      const human = await workspaces.acknowledgeAgentPaused({
+        taskId: dependent.task.id,
+        workerId: worker.id,
+        fencingToken: assignment.fencingToken,
+        actor: workerActor,
+        correlationId: randomUUID(),
+      });
+      expect(human.state).toBe('HUMAN_OWNED');
+      expect(human.ownerActorId).toBe(developer.actorId);
+      const unsafeLink = path.join(checkout, 'unsafe-link');
+      await symlink(tmpdir(), unsafeLink);
+      await expect(
+        workspaces.returnToAgent({
+          taskId: dependent.task.id,
+          actor: developer,
+          fencingToken: human.fencingToken,
+          reason: 'Unsafe symlink should be rejected',
+          correlationId: randomUUID(),
+        }),
+      ).rejects.toThrow(/safety validation/);
+      expect((await workspaces.get(dependent.task.id)).state).toBe(
+        'HUMAN_OWNED',
+      );
+      await rm(unsafeLink);
+      await writeFile(path.join(checkout, '.gitmodules'), '[submodule]\n');
+      await expect(
+        workspaces.returnToAgent({
+          taskId: dependent.task.id,
+          actor: developer,
+          fencingToken: human.fencingToken,
+          reason: 'Submodule metadata should be rejected',
+          correlationId: randomUUID(),
+        }),
+      ).rejects.toThrow(/safety validation/);
+      await rm(path.join(checkout, '.gitmodules'));
+      await writeFile(path.join(checkout, 'README.md'), 'after\n');
+      const returned = await workspaces.returnToAgent({
+        taskId: dependent.task.id,
+        actor: developer,
+        fencingToken: human.fencingToken,
+        reason: 'Developer implementation is ready for verification',
+        correlationId: randomUUID(),
+      });
+      expect(returned.changedFiles).toEqual(['README.md']);
+      expect(returned.ownership.state).toBe('RETURNING');
+      const resumed = await workspaces.resumeAgent({
+        taskId: dependent.task.id,
+        workerId: worker.id,
+        workerFencingToken: worker.fencingToken,
+        leaseMilliseconds: 60_000,
+        actor: workerActor,
+        correlationId: randomUUID(),
+      });
+      expect(resumed.state).toBe('AGENT_OWNED');
+      expect(resumed.fencingToken).not.toBe(human.fencingToken);
+
+      await database.query(
+        `UPDATE workspace_ownerships SET lease_expires_at = now() - interval '1 minute'
+         WHERE task_id = $1`,
+        [dependent.task.id],
+      );
+      expect((await workers.recoverExpired()).workspaces).toBe(1);
+      expect((await workspaces.get(dependent.task.id)).state).toBe(
+        'RECOVERY_REQUIRED',
+      );
+      const recovered = await workspaces.recover({
+        taskId: dependent.task.id,
+        actor: operator,
+        direction: 'HUMAN',
+        reason: 'Operator recovered an expired workspace lease',
+        leaseMilliseconds: 60_000,
+        correlationId: randomUUID(),
+      });
+      expect(recovered.state).toBe('HUMAN_OWNED');
+    } finally {
+      await rm(checkout, { recursive: true, force: true });
+    }
+
+    const rotated = await auth.rotate(operator);
+    await expect(auth.authenticate(operatorToken)).rejects.toThrow();
+    expect((await auth.authenticate(rotated)).actorId).toBe(operator.actorId);
   });
 
   it('creates fenced task worktrees, fetches existing mirrors, and cleans safely', async () => {

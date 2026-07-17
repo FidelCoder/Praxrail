@@ -1,51 +1,51 @@
+import { CAPABILITIES, type ActorRole, type Capability } from '@praxrail/core';
 import { AuthorizationError } from '../domain/errors.js';
 
-export const ACTOR_ROLES = [
-  'OWNER',
-  'PLANNER',
-  'SCHEDULER',
-  'BUILDER_WORKER',
-  'REVIEWER',
-  'CI_RECONCILER',
-  'GITHUB_RECONCILER',
-  'RELEASE_MANAGER',
-  'REPORTER',
-  'OPERATOR',
-] as const;
-
-export type ActorRole = (typeof ACTOR_ROLES)[number];
-
-export const CAPABILITIES = [
-  'TASK_CREATE',
-  'TASK_REFINE',
-  'TASK_PRIORITIZE',
-  'TASK_PAUSE',
-  'TASK_APPROVE',
-  'TASK_CLAIM',
-  'TASK_BUILD_RESULT',
-  'TASK_REVIEW_RESULT',
-  'TASK_RECONCILE',
-  'REPORT_READ',
-] as const;
-
-export type Capability = (typeof CAPABILITIES)[number];
+export {
+  ACTOR_ROLES,
+  CAPABILITIES,
+  type ActorRole,
+  type Capability,
+} from '@praxrail/core';
 
 const permissions: Readonly<Record<ActorRole, readonly Capability[]>> = {
   OWNER: [
+    'RUNTIME_READ',
+    'TASK_READ',
     'TASK_CREATE',
     'TASK_PRIORITIZE',
     'TASK_PAUSE',
     'TASK_APPROVE',
+    'WORKSPACE_ATTACH',
+    'WORKSPACE_RETURN',
     'REPORT_READ',
   ],
-  PLANNER: ['TASK_CREATE', 'TASK_REFINE'],
-  SCHEDULER: ['TASK_CLAIM'],
-  BUILDER_WORKER: ['TASK_BUILD_RESULT'],
-  REVIEWER: ['TASK_REVIEW_RESULT'],
-  CI_RECONCILER: ['TASK_RECONCILE'],
-  GITHUB_RECONCILER: ['TASK_RECONCILE'],
-  RELEASE_MANAGER: ['TASK_RECONCILE'],
-  REPORTER: ['REPORT_READ'],
+  DEVELOPER: [
+    'RUNTIME_READ',
+    'TASK_READ',
+    'TASK_CREATE',
+    'TASK_REFINE',
+    'TASK_PRIORITIZE',
+    'TASK_PAUSE',
+    'WORKSPACE_ATTACH',
+    'WORKSPACE_RETURN',
+  ],
+  PLANNER: ['TASK_READ', 'TASK_CREATE', 'TASK_REFINE'],
+  SCHEDULER: ['RUNTIME_READ', 'TASK_READ', 'TASK_CLAIM'],
+  WORKER: [
+    'RUNTIME_READ',
+    'TASK_READ',
+    'TASK_CLAIM',
+    'TASK_BUILD_RESULT',
+    'WORKER_REGISTER',
+    'WORKER_HEARTBEAT',
+  ],
+  BUILDER_WORKER: ['TASK_READ', 'TASK_BUILD_RESULT', 'WORKER_HEARTBEAT'],
+  REVIEWER: ['TASK_READ', 'TASK_REVIEW_RESULT'],
+  CI_RECONCILER: ['TASK_READ', 'TASK_RECONCILE'],
+  GITHUB_RECONCILER: ['TASK_READ', 'TASK_RECONCILE'],
+  RELEASE_MANAGER: ['TASK_READ', 'TASK_RECONCILE'],
+  REPORTER: ['TASK_READ', 'REPORT_READ'],
   OPERATOR: [...CAPABILITIES],
 };
 

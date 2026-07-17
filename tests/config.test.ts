@@ -18,6 +18,7 @@ describe('loadConfig', () => {
     expect(config.telegram.enabled).toBe(false);
     expect(config.github.enabled).toBe(false);
     expect(config.codex.enabled).toBe(false);
+    expect(config.api.enabled).toBe(false);
     expect(config.jobs).toEqual({
       concurrency: 4,
       retryLimit: 3,
@@ -34,6 +35,22 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...base, TELEGRAM_ENABLED: 'true' })).toThrow(
       /TELEGRAM_BOT_TOKEN/,
     );
+  });
+
+  it('fails closed when the product API is enabled without a bootstrap token', () => {
+    expect(() => loadConfig({ ...base, API_ENABLED: 'true' })).toThrow(
+      /API_BOOTSTRAP_TOKEN/,
+    );
+    const config = loadConfig({
+      ...base,
+      API_ENABLED: 'true',
+      API_BOOTSTRAP_TOKEN: `pxr_${'a'.repeat(40)}`,
+      API_SOCKET_PATH: './state/runtime.sock',
+      API_BOOTSTRAP_ROLE: 'DEVELOPER',
+    });
+    expect(config.api.socketPath).toBe(path.resolve('state/runtime.sock'));
+    expect(config.api.bootstrapRole).toBe('DEVELOPER');
+    expect(JSON.stringify(config.api)).toBe('"[REDACTED]"');
   });
 
   it('loads an enabled GitHub App and normalizes repository names', () => {

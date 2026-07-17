@@ -121,7 +121,7 @@ export class GitClient {
 
   async changedFiles(worktreePath: string, baseSha: string): Promise<string[]> {
     const result = await this.run(
-      ['diff', '--name-only', '--diff-filter=ACMR', baseSha, '--'],
+      ['diff', '--name-only', '--diff-filter=ACMRD', baseSha, '--'],
       { cwd: worktreePath },
     );
     const tracked = result.stdout.split('\n').filter(Boolean);
@@ -133,6 +133,16 @@ export class GitClient {
       .split('\n')
       .filter(Boolean);
     return [...new Set([...tracked, ...untracked])].sort();
+  }
+
+  async hasSubmoduleChanges(
+    worktreePath: string,
+    baseSha: string,
+  ): Promise<boolean> {
+    const result = await this.run(['diff', '--raw', baseSha, '--'], {
+      cwd: worktreePath,
+    });
+    return /^:(?:160000 \d{6}|\d{6} 160000) /m.test(result.stdout);
   }
 
   async diff(worktreePath: string, baseSha: string): Promise<string> {

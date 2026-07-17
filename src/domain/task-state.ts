@@ -1,27 +1,8 @@
+import type { TaskStatus } from '@praxrail/core';
 import { DomainError } from './errors.js';
 import { validateReadyContract, type TaskContract } from './task-contract.js';
 
-export const TASK_STATUSES = [
-  'INBOX',
-  'REFINING',
-  'BLOCKED',
-  'READY',
-  'BUILDING',
-  'FAILED',
-  'REVIEWING',
-  'CHANGES_REQUESTED',
-  'CI',
-  'PR_READY',
-  'AWAITING_APPROVAL',
-  'MERGED',
-  'DEPLOYED',
-  'VERIFIED',
-  'CANCELLED',
-  'ABANDONED',
-  'SUPERSEDED',
-] as const;
-
-export type TaskStatus = (typeof TASK_STATUSES)[number];
+export { TASK_STATUSES, type TaskStatus } from '@praxrail/core';
 
 const transitions: Readonly<Record<TaskStatus, readonly TaskStatus[]>> = {
   INBOX: ['REFINING', 'CANCELLED', 'SUPERSEDED'],

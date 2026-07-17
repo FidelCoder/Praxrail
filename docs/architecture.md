@@ -7,6 +7,12 @@ own worker profile, instructions, isolated execution image, verification
 commands, and risk overrides. Task intake either resolves one approved target
 or pauses for clarification; it never guesses between repositories.
 
+The terminal-first product boundaries and compatibility sequence are defined in
+[product migration](architecture/product-migration.md). Public behavior is
+defined by the [CLI](contracts/cli-v1.md), [runtime API](contracts/runtime-api-v1.yaml),
+[workspace handoff](contracts/handoff-v1.md), and
+[communication](contracts/communications-v1.md) contracts.
+
 Praxrail begins as one deployable TypeScript service with explicit internal
 boundaries:
 

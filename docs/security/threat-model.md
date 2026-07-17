@@ -44,3 +44,20 @@ credentials; the reviewer is read-only and neither role has merge authority.
 6. Integrations fail closed when required security configuration is absent.
 7. Host command execution is disabled outside explicit test mode; verification
    requires a digest-pinned, network-off container.
+
+## Terminal Product Addendum
+
+| Threat                                   | Control                                                                                                     | Failure state                                                |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Stolen API token                         | Digest-only storage, mode-0600 profile fallback, TLS or mode-0600 Unix socket, rotation and revocation      | Authentication fails after revocation                        |
+| Cross-project API read                   | Actor project scope on task, event, output, workspace, and repository operations                            | `ACTION_NOT_PERMITTED` without mutation                      |
+| Mutation replay                          | Per-identity operation scope, request digest, idempotency lease, and cached response                        | Conflict on changed body; completed response on exact replay |
+| Worker identity takeover                 | Identity-bound worker name, permanent revocation, active lease, repository allowlist, profile match         | Assignment refused or `RECOVERY_REQUIRED`                    |
+| Concurrent human/agent writes            | Ownership state machine, monotonic fences, repository lock, cancellation acknowledgement                    | Stale owner receives `CONFLICT`                              |
+| Unsafe human return                      | Managed-path checks, tracked/untracked scan, symlink/submodule rejection, secret/path scan, evidence bound  | Workspace remains `HUMAN_OWNED`                              |
+| Output exfiltration or memory exhaustion | Redaction before persistence, 32 KiB chunks, truncation marker, 500-record pages, 2 MiB client response cap | Bounded redacted output only                                 |
+| API resource exhaustion                  | 1 MiB requests, 30-second server timeout, 600 requests per identity per minute                              | Retryable `RATE_LIMITED` response                            |
+
+The product API is disabled unless explicitly enabled with a bootstrap token.
+Local and remote transports use identical authentication, authorization,
+idempotency, audit attribution, error, and cursor behavior.

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { DomainError } from '../domain/errors.js';
+import { registerProductApi } from '../api/routes.js';
 import { verifyGitHubSignature } from '../integrations/github/auth.js';
 import { authenticateTelegram } from '../integrations/telegram/auth.js';
 import { SenderRateLimiter } from '../integrations/telegram/rate-limiter.js';
@@ -53,6 +54,8 @@ async function schemaReady(runtime: Runtime): Promise<boolean> {
 export function createApp(runtime: Runtime): FastifyInstance {
   const app = Fastify({
     bodyLimit: 1_048_576,
+    connectionTimeout: 30_000,
+    requestTimeout: 30_000,
     logger: {
       level: runtime.config.logLevel,
       redact: { paths: loggerRedactPaths, censor: '[REDACTED]' },
@@ -89,6 +92,8 @@ export function createApp(runtime: Runtime): FastifyInstance {
       .header('content-type', runtime.metrics.registry.contentType)
       .send(await runtime.metrics.render());
   });
+
+  registerProductApi(app, runtime);
 
   app.post('/webhooks/telegram/:secret', async (request, reply) => {
     if (
@@ -177,21 +182,42 @@ export function createApp(runtime: Runtime): FastifyInstance {
       const status =
         error.code === 'AUTHENTICATION_FAILED'
           ? 401
-          : error.code === 'NOT_FOUND'
-            ? 404
-            : 409;
+          : error.code === 'ACTION_NOT_PERMITTED'
+            ? 403
+            : error.code === 'INVALID_REQUEST'
+              ? 400
+              : error.code === 'NOT_FOUND'
+                ? 404
+                : error.code === 'RATE_LIMITED'
+                  ? 429
+                  : 409;
       request.log.warn({ correlationId, code: error.code }, 'Request rejected');
-      return reply.code(status).send({ error: error.code, correlationId });
+      return reply.code(status).send({
+        error: error.code,
+        message: error.message,
+        correlationId,
+        retryable: error.code === 'RATE_LIMITED',
+      });
     }
     if (error instanceof z.ZodError || error instanceof SyntaxError) {
       request.log.warn({ correlationId }, 'Invalid request');
-      return reply.code(400).send({ error: 'INVALID_REQUEST', correlationId });
+      return reply.code(400).send({
+        error: 'INVALID_REQUEST',
+        message: 'The request is invalid',
+        correlationId,
+        retryable: false,
+      });
     }
     request.log.error(
       { correlationId, error: redactSensitive(error) },
       'Request failed',
     );
-    return reply.code(500).send({ error: 'INTERNAL_ERROR', correlationId });
+    return reply.code(500).send({
+      error: 'INTERNAL_ERROR',
+      message: 'The request failed',
+      correlationId,
+      retryable: false,
+    });
   });
 
   return app;

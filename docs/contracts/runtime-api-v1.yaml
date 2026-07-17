@@ -1,0 +1,171 @@
+openapi: 3.1.0
+info:
+  title: Praxrail Runtime API
+  version: 1.0.0
+servers:
+  - url: https://praxrail.example/api/v1
+security:
+  - bearerToken: []
+paths:
+  /runtime:
+    get:
+      operationId: runtimeStatus
+      responses:
+        '200': { description: Runtime status }
+  /auth/token/rotate:
+    post:
+      operationId: rotateToken
+      responses:
+        '200': { description: Replacement token; the caller token is revoked }
+  /auth/token:
+    delete:
+      operationId: revokeToken
+      responses:
+        '204': { description: Token revoked }
+  /tasks:
+    get:
+      operationId: listTasks
+      responses:
+        '200': { description: Project-scoped active tasks }
+  /tasks/{reference}:
+    get:
+      operationId: getTask
+      parameters:
+        - {
+            name: reference,
+            in: path,
+            required: true,
+            schema: { type: string },
+          }
+      responses:
+        '200': { description: Task summary }
+  /events:
+    get:
+      operationId: listEvents
+      parameters:
+        - { name: cursor, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: taskId, in: query, schema: { type: string, format: uuid } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 500 },
+          }
+      responses:
+        '200': { description: Ordered durable events and next cursor }
+  /output:
+    get:
+      operationId: listOutput
+      parameters:
+        - { name: cursor, in: query, schema: { type: integer, minimum: 0 } }
+        - {
+            name: taskId,
+            in: query,
+            required: true,
+            schema: { type: string, format: uuid },
+          }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 500 },
+          }
+      responses:
+        '200': { description: Ordered bounded redacted output and next cursor }
+  /workers:
+    post:
+      operationId: registerWorker
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Registered and fenced worker }
+  /workers/{workerId}/heartbeat:
+    post:
+      operationId: heartbeatWorker
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Renewed worker lease }
+  /workers/{workerId}/status:
+    post:
+      operationId: setWorkerStatus
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Draining or revoked worker state }
+  /workers/{workerId}/claim:
+    post:
+      operationId: claimTask
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Fenced assignment or null }
+  /tasks/{taskId}/workspace:
+    get:
+      operationId: getWorkspaceOwnership
+      responses:
+        '200': { description: Current ownership and fence }
+  /tasks/{taskId}/workspace/bind:
+    post:
+      operationId: bindWorkspaceGitRef
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Fenced worktree binding }
+  /tasks/{taskId}/workspace/attach:
+    post:
+      operationId: requestWorkspaceAttach
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Pausing ownership state }
+  /tasks/{taskId}/workspace/paused:
+    post:
+      operationId: acknowledgeAgentPaused
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Human ownership state }
+  /tasks/{taskId}/workspace/return:
+    post:
+      operationId: returnWorkspace
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Returning ownership and diff evidence }
+  /tasks/{taskId}/workspace/resume:
+    post:
+      operationId: resumeAgentOwnership
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Agent ownership state }
+  /tasks/{taskId}/workspace/recover:
+    post:
+      operationId: recoverWorkspace
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Operator-selected recovery state }
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 200 }
+  securitySchemes:
+    bearerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: Praxrail API token
+
+x-praxrail-compatibility:
+  policy: additive-within-v1
+  minimum-client-version: 0.2.0
+  event-cursors: retained-and-monotonic
+  output-cursors: retained-and-monotonic
+  retry-policy: safe-reads-or-idempotency-key-only
+  limits:
+    request-bytes: 1048576
+    response-bytes: 2097152
+    requests-per-identity-per-minute: 600
+    server-timeout-milliseconds: 30000

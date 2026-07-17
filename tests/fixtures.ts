@@ -38,6 +38,11 @@ export function appConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     host: '127.0.0.1',
     port: 3000,
     logLevel: 'silent',
+    api: {
+      enabled: false,
+      bootstrapActorId: 'local-owner',
+      bootstrapRole: 'OWNER',
+    },
     database: {
       url: 'postgres://praxrail:praxrail@localhost:5433/praxrail',
       ssl: false,

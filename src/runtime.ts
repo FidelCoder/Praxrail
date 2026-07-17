@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ApiAuthService } from './api/auth-service.js';
 import { CodexSdkProvider, type AgentProvider } from './agents/provider.js';
 import type { AppConfig } from './config.js';
 import { GitHubAppClient } from './integrations/github/auth.js';
@@ -23,9 +24,13 @@ import {
 import { ApprovalService } from './services/approval-service.js';
 import { CostService } from './services/cost-service.js';
 import { IncomingMessageService } from './services/incoming-message-service.js';
+import { IdempotencyService } from './services/idempotency-service.js';
 import { OutboxService } from './services/outbox-service.js';
 import { TaskQueryService } from './services/task-query-service.js';
 import { TaskService } from './services/task-service.js';
+import { EventStreamService } from './runtime/event-stream-service.js';
+import { WorkerRegistryService } from './workers/worker-registry-service.js';
+import { WorkspaceOwnershipService } from './workspaces/workspace-ownership-service.js';
 
 const planningJobSchema = z.object({
   taskId: z.uuid(),
@@ -42,6 +47,14 @@ export interface Runtime {
   database: Database;
   queue: DurableQueue;
   metrics: Metrics;
+  started: boolean;
+  auth: ApiAuthService;
+  tasks: TaskService;
+  queries: TaskQueryService;
+  events: EventStreamService;
+  workers: WorkerRegistryService;
+  workspaces: WorkspaceOwnershipService;
+  idempotency: IdempotencyService;
   telegram: TelegramProcessor;
   githubWebhooks: GitHubWebhookService;
   planner: PlannerService;
@@ -70,7 +83,15 @@ export function createRuntime(config: AppConfig): Runtime {
   const approvals = new ApprovalService(database);
   const costs = new CostService(database, config.budget);
   const incomingMessages = new IncomingMessageService(database);
+  const idempotency = new IdempotencyService(database);
   const queries = new TaskQueryService(database);
+  const auth = new ApiAuthService(database);
+  const events = new EventStreamService(database);
+  const workers = new WorkerRegistryService(database);
+  const workspaces = new WorkspaceOwnershipService(
+    database,
+    config.paths.workspaceRoot,
+  );
   const commands = new TelegramCommandService(
     config,
     tasks,
@@ -124,6 +145,14 @@ export function createRuntime(config: AppConfig): Runtime {
     database,
     queue,
     metrics,
+    started: false,
+    auth,
+    tasks,
+    queries,
+    events,
+    workers,
+    workspaces,
+    idempotency,
     telegram,
     githubWebhooks,
     planner,
@@ -140,6 +169,14 @@ export function createRuntime(config: AppConfig): Runtime {
 }
 
 export async function startRuntime(runtime: Runtime): Promise<void> {
+  if (runtime.config.api.enabled && runtime.config.api.bootstrapToken) {
+    await runtime.auth.provisionBootstrap({
+      token: runtime.config.api.bootstrapToken,
+      actorId: runtime.config.api.bootstrapActorId,
+      role: runtime.config.api.bootstrapRole,
+    });
+  }
+  await runtime.workers.recoverExpired();
   runtime.queue.onError((error) => {
     process.stderr.write(`Queue error: ${error.message}\n`);
   });
@@ -246,9 +283,11 @@ export async function startRuntime(runtime: Runtime): Promise<void> {
     });
   }, 15_000);
   runtime.maintenanceTimer.unref();
+  runtime.started = true;
 }
 
 export async function stopRuntime(runtime: Runtime): Promise<void> {
+  runtime.started = false;
   if (runtime.maintenanceTimer) clearInterval(runtime.maintenanceTimer);
   runtime.maintenanceTimer = null;
   runtime.reportScheduler.stop();
