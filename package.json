@@ -1,6 +1,6 @@
 {
   "name": "praxrail-workspace",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Autonomous agentic coding tool for tested, independently reviewed software changes across repositories.",
   "license": "MIT",
@@ -12,7 +12,7 @@
   "scripts": {
     "artifacts:cli": "tsx scripts/generate-cli-artifacts.ts",
     "boundaries": "tsx scripts/check-package-boundaries.ts",
-    "package:verify": "pnpm build:packages && pnpm artifacts:cli && tsx scripts/verify-package-contents.ts",
+    "package:verify": "pnpm build && pnpm artifacts:cli && tsx scripts/verify-package-contents.ts",
     "build": "pnpm build:packages && tsc -p tsconfig.build.json",
     "build:packages": "pnpm --filter praxrail-core build && pnpm --filter praxrail-client build && pnpm --filter praxrail build",
     "cli": "tsx packages/cli/src/bin.ts",
@@ -36,7 +36,6 @@
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build"
   },
   "dependencies": {
-    "praxrail-core": "workspace:*",
     "@octokit/app": "^16.1.2",
     "@octokit/webhooks": "^14.2.0",
     "@openai/codex-sdk": "^0.144.5",
@@ -46,6 +45,7 @@
     "luxon": "^3.7.2",
     "pg": "^8.22.0",
     "pg-boss": "^12.26.0",
+    "praxrail-core": "workspace:*",
     "prom-client": "^15.1.3",
     "zod": "^4.4.3"
   },

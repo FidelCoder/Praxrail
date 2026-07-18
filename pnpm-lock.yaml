@@ -87,12 +87,45 @@ importers:
 
   packages/cli:
     dependencies:
+      '@octokit/app':
+        specifier: ^16.1.2
+        version: 16.1.2
+      '@octokit/webhooks':
+        specifier: ^14.2.0
+        version: 14.2.0
+      '@openai/codex-sdk':
+        specifier: ^0.144.5
+        version: 0.144.5
+      croner:
+        specifier: ^10.0.1
+        version: 10.0.1
+      execa:
+        specifier: ^9.6.1
+        version: 9.6.1
+      fastify:
+        specifier: ^5.10.0
+        version: 5.10.0
+      luxon:
+        specifier: ^3.7.2
+        version: 3.7.2
+      pg:
+        specifier: ^8.22.0
+        version: 8.22.0
+      pg-boss:
+        specifier: ^12.26.0
+        version: 12.26.0
       praxrail-client:
         specifier: workspace:*
         version: link:../client
       praxrail-core:
         specifier: workspace:*
         version: link:../core
+      prom-client:
+        specifier: ^15.1.3
+        version: 15.1.3
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
 
   packages/client:
     dependencies:

@@ -70,14 +70,31 @@ try {
       );
     }
     const content = await readFile(filename);
+    const manifest = JSON.parse(
+      await run('tar', ['-xOf', filename, 'package/package.json']),
+    ) as { name?: unknown; version?: unknown };
+    if (typeof manifest.name !== 'string') {
+      throw new Error(`Package manifest in ${archive} is missing a name`);
+    }
+    if (typeof manifest.version !== 'string') {
+      throw new Error(`Package manifest in ${archive} is missing a version`);
+    }
+    if (
+      manifest.name === 'praxrail' &&
+      !files.includes('package/runtime/index.js')
+    ) {
+      throw new Error(
+        'praxrail package is missing the managed runtime entrypoint',
+      );
+    }
     evidence.push({
-      package: archive.replace(/-0\.3\.0\.tgz$/, ''),
+      package: manifest.name,
       artifact: archive,
       sha256: createHash('sha256').update(content).digest('hex'),
       files,
     });
   }
-  process.stdout.write(`${JSON.stringify({ version: '0.3.0', evidence })}\n`);
+  process.stdout.write(`${JSON.stringify({ version: '0.3.1', evidence })}\n`);
 } finally {
   await rm(output, { recursive: true, force: true });
 }

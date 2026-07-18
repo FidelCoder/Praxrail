@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const groups: Readonly<Record<string, readonly string[]>> = {
@@ -64,6 +64,8 @@ const rootCommands = [
 const packageRoot = path.resolve('packages/cli');
 const completionRoot = path.join(packageRoot, 'completions');
 const manualRoot = path.join(packageRoot, 'man');
+const runtimeRoot = path.join(packageRoot, 'runtime');
+const builtRuntimeRoot = path.resolve('dist');
 await mkdir(completionRoot, { recursive: true });
 await mkdir(manualRoot, { recursive: true });
 
@@ -110,7 +112,7 @@ _praxrail "$@"
 const groupReference = Object.entries(groups)
   .map(([group, actions]) => `.TP\n.B ${group}\n${actions.join(', ')}`)
   .join('\n');
-const manual = `.TH PRAXRAIL 1 "2026-07-17" "Praxrail 0.3.0" "Praxrail Manual"
+const manual = `.TH PRAXRAIL 1 "2026-07-18" "Praxrail 0.3.1" "Praxrail Manual"
 .SH NAME
 praxrail - terminal client for the Praxrail autonomous coding runtime
 .SH SYNOPSIS
@@ -133,9 +135,17 @@ local human-owned managed workspace.
 https://github.com/FidelCoder/Praxrail
 `;
 
+await access(path.join(builtRuntimeRoot, 'index.js'));
+await rm(runtimeRoot, { recursive: true, force: true });
+await cp(builtRuntimeRoot, runtimeRoot, {
+  recursive: true,
+  filter: (source) => !source.endsWith('.tsbuildinfo'),
+});
 await Promise.all([
   writeFile(path.join(completionRoot, 'praxrail.bash'), bash, 'utf8'),
   writeFile(path.join(completionRoot, '_praxrail'), zsh, 'utf8'),
   writeFile(path.join(manualRoot, 'praxrail.1'), manual, 'utf8'),
 ]);
-process.stdout.write('Generated bash/zsh completions and praxrail(1)\n');
+process.stdout.write(
+  'Generated packaged runtime, bash/zsh completions, and praxrail(1)\n',
+);

@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -91,7 +92,7 @@ function exitCode(error: unknown): number {
   return 1;
 }
 
-const VERSION = '0.3.0';
+const VERSION = '0.3.1';
 const help = `Praxrail ${VERSION}
 
 Usage: praxrail [--profile NAME] [--json] <command>
@@ -135,10 +136,10 @@ Global flags:
 `;
 
 function runtimeEntry(): string {
-  return path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    '../../../dist/index.js',
-  );
+  const cliDist = path.dirname(fileURLToPath(import.meta.url));
+  const packagedRuntime = path.resolve(cliDist, '../runtime/index.js');
+  if (existsSync(packagedRuntime)) return packagedRuntime;
+  return path.resolve(cliDist, '../../../dist/index.js');
 }
 
 export async function runCli(

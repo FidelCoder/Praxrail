@@ -3,6 +3,7 @@
 !.env.example
 .npmrc
 .praxrail/
+packages/cli/runtime/
 coverage/
 dist/
 node_modules/
