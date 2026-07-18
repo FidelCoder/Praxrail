@@ -29,6 +29,10 @@ export interface AgentProvider {
   run(request: AgentRequest): Promise<AgentProviderResult>;
 }
 
+export interface CodexSdkProviderOptions {
+  baseUrl?: string;
+}
+
 function boundedToolAction(event: ThreadEvent): Record<string, unknown> | null {
   if (event.type !== 'item.completed') return null;
   const item = event.item;
@@ -66,7 +70,10 @@ function boundedToolAction(event: ThreadEvent): Record<string, unknown> | null {
 }
 
 export class CodexSdkProvider implements AgentProvider {
-  constructor(private readonly apiKey: string) {}
+  constructor(
+    private readonly apiKey: string,
+    private readonly options: CodexSdkProviderOptions = {},
+  ) {}
 
   async run(request: AgentRequest): Promise<AgentProviderResult> {
     const controller = new AbortController();
@@ -76,6 +83,7 @@ export class CodexSdkProvider implements AgentProvider {
     try {
       const codex = new Codex({
         apiKey: this.apiKey,
+        ...(this.options.baseUrl ? { baseUrl: this.options.baseUrl } : {}),
         env: {
           PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
           HOME: '/tmp/praxrail-codex-home',

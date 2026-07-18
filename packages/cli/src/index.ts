@@ -95,7 +95,7 @@ function exitCode(error: unknown): number {
   return 1;
 }
 
-const VERSION = '0.3.3';
+const VERSION = '0.3.4';
 const help = `Praxrail ${VERSION}
 
 Usage: pxr [--profile NAME] [--json] <command>
@@ -142,6 +142,7 @@ Global flags:
   --non-interactive          Refuse interactive prompts
   --timeout MILLISECONDS     Set request timeout
   --model MODEL              Select the coding model for pxr start
+  --base-url URL             Use a custom OpenAI-compatible base URL
   --api-key-env NAME         Read the builder API key from a named env var
   --review-api-key-env NAME  Read the reviewer API key from a named env var
   --dry-run                  Validate a mutation without writing
@@ -229,6 +230,7 @@ async function promptForModel(
 async function runtimeStartContext(input: {
   options: {
     model?: string | undefined;
+    'base-url'?: string | undefined;
     'api-key-env'?: string | undefined;
     'review-api-key-env'?: string | undefined;
     'non-interactive'?: boolean | undefined;
@@ -254,6 +256,8 @@ async function runtimeStartContext(input: {
   const reviewerApiKey = explicitReviewApiKeyName
     ? base[explicitReviewApiKeyName]
     : base.CODEX_REVIEWER_API_KEY;
+  const baseUrl =
+    input.options['base-url'] ?? base.CODEX_BASE_URL ?? base.OPENAI_BASE_URL;
   let model = input.options.model ?? base.CODEX_MODEL ?? base.OPENAI_MODEL;
   if (!model && builderApiKey && !input.options['non-interactive']) {
     model = await promptForModel('gpt-5.5');
@@ -288,6 +292,7 @@ async function runtimeStartContext(input: {
     environment.CODEX_BUILDER_API_KEY = builderApiKey;
     environment.CODEX_REVIEWER_API_KEY = reviewerApiKey;
     environment.CODEX_MODEL = model;
+    if (baseUrl) environment.CODEX_BASE_URL = baseUrl;
   }
   return { endpoint, environment, model, profile: localProfileName, token };
 }
@@ -328,6 +333,7 @@ export async function runCli(
         'non-interactive': { type: 'boolean', default: false },
         timeout: { type: 'string' },
         model: { type: 'string' },
+        'base-url': { type: 'string' },
         'api-key-env': { type: 'string' },
         'review-api-key-env': { type: 'string' },
         version: { type: 'boolean', short: 'V', default: false },

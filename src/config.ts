@@ -123,6 +123,8 @@ const environmentSchema = z
       (value: unknown): unknown => (value === '' ? undefined : value),
       z.string().min(1).max(100).optional(),
     ),
+    CODEX_BASE_URL: optionalUrl,
+    OPENAI_BASE_URL: optionalUrl,
     CODEX_TIMEOUT_MS: z.coerce
       .number()
       .int()
@@ -268,6 +270,7 @@ export interface AppConfig {
     builderApiKey?: string;
     reviewerApiKey?: string;
     model?: string;
+    baseUrl?: string;
     timeoutMs: number;
   };
   telemetry: { enabled: boolean; serviceName: string };
@@ -308,6 +311,7 @@ export function loadConfig(
   const resolveFromWorkingDirectory = (input: string): string =>
     path.resolve(workingDirectory, input);
   const githubPrivateKey = decodePrivateKey(value.GITHUB_PRIVATE_KEY_BASE64);
+  const codexBaseUrl = value.CODEX_BASE_URL ?? value.OPENAI_BASE_URL;
 
   const config: AppConfig = {
     environment: value.NODE_ENV,
@@ -399,6 +403,7 @@ export function loadConfig(
         ? { reviewerApiKey: value.CODEX_REVIEWER_API_KEY }
         : {}),
       ...(value.CODEX_MODEL ? { model: value.CODEX_MODEL } : {}),
+      ...(codexBaseUrl ? { baseUrl: codexBaseUrl } : {}),
       timeoutMs: value.CODEX_TIMEOUT_MS,
     },
     telemetry: {

@@ -139,13 +139,22 @@ export function createRuntime(config: AppConfig): Runtime {
   const reports = telegramGateway
     ? new DailyReportService(database, outbox)
     : null;
+  const codexProviderOptions = config.codex.baseUrl
+    ? { baseUrl: config.codex.baseUrl }
+    : {};
   const agentProviders =
     config.codex.enabled &&
     config.codex.builderApiKey &&
     config.codex.reviewerApiKey
       ? {
-          builder: new CodexSdkProvider(config.codex.builderApiKey),
-          reviewer: new CodexSdkProvider(config.codex.reviewerApiKey),
+          builder: new CodexSdkProvider(
+            config.codex.builderApiKey,
+            codexProviderOptions,
+          ),
+          reviewer: new CodexSdkProvider(
+            config.codex.reviewerApiKey,
+            codexProviderOptions,
+          ),
         }
       : null;
   const channels = new ChannelDeliveryService(database, outbox, {

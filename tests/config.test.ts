@@ -84,9 +84,11 @@ describe('loadConfig', () => {
       CODEX_BUILDER_API_KEY: 'codex-builder-key-with-safe-length',
       CODEX_REVIEWER_API_KEY: 'codex-reviewer-key-with-safe-length',
       CODEX_MODEL: 'gpt-test',
+      OPENAI_BASE_URL: 'https://proxy.example/v1',
     });
     expect(config.codex.enabled).toBe(true);
     expect(config.codex.model).toBe('gpt-test');
+    expect(config.codex.baseUrl).toBe('https://proxy.example/v1');
     expect(JSON.stringify(config.codex)).toBe('"[REDACTED]"');
     expect(JSON.stringify(config)).not.toContain('codex-builder-key');
     expect(() =>

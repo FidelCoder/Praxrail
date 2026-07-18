@@ -1,6 +1,6 @@
 {
   "name": "praxrail-workspace",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "private": true,
   "description": "Autonomous agentic coding tool for tested, independently reviewed software changes across repositories.",
   "license": "MIT",

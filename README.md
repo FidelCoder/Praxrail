@@ -32,7 +32,7 @@ approvals, clarifications, and concise remote actions.
 Start with the [installation guide](docs/product/installation.md),
 [quickstart](docs/product/quickstart.md), [terminal workflows](docs/product/terminal-workflows.md),
 [communications guide](docs/product/communications.md), and
-[upgrade/support guide](docs/product/upgrades-and-support.md). Install the terminal package with `npm install -g praxrail`, then use `pxr start --model <model>`, `pxr ask "..."`, and `pxr stop` for the shell-first workflow. During source development, run `pnpm cli -- version` to exercise the CLI entry point.
+[upgrade/support guide](docs/product/upgrades-and-support.md). Install the terminal package with `npm install -g praxrail`, then use `pxr start --model <model> --base-url <url>`, `pxr ask "..."`, and `pxr stop` for the shell-first workflow. During source development, run `pnpm cli -- version` to exercise the CLI entry point.
 
 ## Local Development
 

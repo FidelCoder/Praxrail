@@ -94,7 +94,7 @@ try {
       files,
     });
   }
-  process.stdout.write(`${JSON.stringify({ version: '0.3.3', evidence })}\n`);
+  process.stdout.write(`${JSON.stringify({ version: '0.3.4', evidence })}\n`);
 } finally {
   await rm(output, { recursive: true, force: true });
 }

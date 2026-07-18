@@ -72,6 +72,8 @@ praxrail support bundle
 praxrail doctor
 ```
 
+`pxr start` accepts `--model` and `--base-url` for terminal-first model selection and OpenAI-compatible proxy routing.
+
 Safe reads and commands carrying an idempotency key may retry bounded transient
 failures. Non-idempotent mutations are never retried automatically. Watch and
 log commands resume from durable cursors and honor cancellation signals.

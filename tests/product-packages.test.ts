@@ -217,14 +217,14 @@ describe('product packages', () => {
       stderr: { write: (value: string) => (stderr += value) },
     };
     expect(await runCli(['--json', 'version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.3.3' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.4' });
     stdout = '';
     expect(await runCli(['unknown'], io)).toBe(2);
     expect(stderr).toContain('Unknown command');
     stdout = '';
     stderr = '';
     expect(await runCli(['--json', '--version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.3.3' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.4' });
 
     stdout = '';
     stderr = '';
@@ -302,6 +302,8 @@ describe('product packages', () => {
             'start',
             '--model',
             'gpt-terminal',
+            '--base-url',
+            'https://proxy.example/v1',
             '--api-key-env',
             'BUILDER_TEST_KEY',
             '--review-api-key-env',
@@ -347,6 +349,9 @@ describe('product packages', () => {
       >;
       expect(runtimeEnvironment.CODEX_ENABLED).toBe('true');
       expect(runtimeEnvironment.CODEX_MODEL).toBe('gpt-terminal');
+      expect(runtimeEnvironment.CODEX_BASE_URL).toBe(
+        'https://proxy.example/v1',
+      );
       expect(runtimeEnvironment.CODEX_BUILDER_API_KEY).toBe(
         'builder-key-with-safe-length',
       );

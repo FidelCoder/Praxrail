@@ -124,7 +124,7 @@ _praxrail "$@"
 const groupReference = Object.entries(groups)
   .map(([group, actions]) => `.TP\n.B ${group}\n${actions.join(', ')}`)
   .join('\n');
-const manual = `.TH PRAXRAIL 1 "2026-07-18" "Praxrail 0.3.3" "Praxrail Manual"
+const manual = `.TH PRAXRAIL 1 "2026-07-18" "Praxrail 0.3.4" "Praxrail Manual"
 .SH NAME
 pxr - terminal client for the Praxrail autonomous coding runtime
 .SH SYNOPSIS
@@ -138,7 +138,8 @@ bounded asynchronous actions; the terminal remains authoritative.
 ${groupReference}
 .SH GLOBAL OPTIONS
 --profile, --json, --quiet, --no-color, --non-interactive, --timeout,
---dry-run, --yes, --follow, --version, --help.
+--model, --base-url, --api-key-env, --review-api-key-env, --dry-run, --yes,
+--follow, --version, --help.
 .SH SECURITY
 Repository approval, publication, revocation, and destructive task operations
 require explicit confirmation. Interactive shells are available only for a
