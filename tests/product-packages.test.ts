@@ -217,14 +217,14 @@ describe('product packages', () => {
       stderr: { write: (value: string) => (stderr += value) },
     };
     expect(await runCli(['--json', 'version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.3.2' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.3' });
     stdout = '';
     expect(await runCli(['unknown'], io)).toBe(2);
     expect(stderr).toContain('Unknown command');
     stdout = '';
     stderr = '';
     expect(await runCli(['--json', '--version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.3.2' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.3' });
 
     stdout = '';
     stderr = '';

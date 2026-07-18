@@ -38,6 +38,41 @@ function processExists(pid: number): boolean {
   }
 }
 
+async function processIsZombie(pid: number): Promise<boolean> {
+  if (os.platform() !== 'linux') return false;
+  try {
+    const stat = await readFile(`/proc/${pid}/stat`, 'utf8');
+    return /^\d+\s+\(.+\)\s+Z\s/.test(stat);
+  } catch {
+    return false;
+  }
+}
+
+async function processStopped(pid: number): Promise<boolean> {
+  return !processExists(pid) || (await processIsZombie(pid));
+}
+
+function signalProcess(pid: number, signal: NodeJS.Signals): boolean {
+  try {
+    process.kill(pid, signal);
+    return true;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error as NodeJS.ErrnoException).code === 'ESRCH'
+    ) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function removeRuntimeFiles(paths: RuntimePaths): Promise<void> {
+  await rm(paths.pidFile, { force: true });
+  await rm(paths.socketFile, { force: true });
+}
+
 async function socketReady(socketFile: string): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     const request = http.request(
@@ -75,7 +110,14 @@ export async function readRuntimeLog(
 export async function runtimePid(paths: RuntimePaths): Promise<number | null> {
   try {
     const pid = Number((await readFile(paths.pidFile, 'utf8')).trim());
-    if (!Number.isInteger(pid) || pid <= 0 || !processExists(pid)) return null;
+    if (
+      !Number.isInteger(pid) ||
+      pid <= 0 ||
+      !processExists(pid) ||
+      (await processIsZombie(pid))
+    ) {
+      return null;
+    }
     return pid;
   } catch (error) {
     if (
@@ -136,17 +178,30 @@ export async function stopRuntimeProcess(
 ): Promise<boolean> {
   const pid = await runtimePid(paths);
   if (!pid) {
-    await rm(paths.pidFile, { force: true });
+    await removeRuntimeFiles(paths);
     return false;
   }
-  process.kill(pid, 'SIGTERM');
+  if (!signalProcess(pid, 'SIGTERM')) {
+    await removeRuntimeFiles(paths);
+    return false;
+  }
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (!processExists(pid)) {
-      await rm(paths.pidFile, { force: true });
+    if (await processStopped(pid)) {
+      await removeRuntimeFiles(paths);
       return true;
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  if (signalProcess(pid, 'SIGKILL')) {
+    const killDeadline = Date.now() + 5_000;
+    while (Date.now() < killDeadline) {
+      if (await processStopped(pid)) {
+        await removeRuntimeFiles(paths);
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
   }
   throw new Error(
     `Praxrail runtime PID ${pid} did not stop before the timeout`,
