@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,9 +23,11 @@ export interface CliIo {
   stderr: { write(value: string): unknown };
 }
 
+type ProfileStoreLike = Pick<ProfileStore, 'get' | 'list' | 'use'> &
+  Partial<Pick<ProfileStore, 'save' | 'remove'>>;
+
 export interface CliDependencies {
-  createProfileStore?: () => Pick<ProfileStore, 'get' | 'list' | 'use'> &
-    Partial<Pick<ProfileStore, 'save' | 'remove'>>;
+  createProfileStore?: () => ProfileStoreLike;
   createClient?: (
     options: PraxrailClientOptions,
   ) => Pick<PraxrailClient, 'runtimeStatus'> & Partial<PraxrailClient>;
@@ -92,20 +95,30 @@ function exitCode(error: unknown): number {
   return 1;
 }
 
-const VERSION = '0.3.1';
+const VERSION = '0.3.2';
 const help = `Praxrail ${VERSION}
 
-Usage: praxrail [--profile NAME] [--json] <command>
+Usage: pxr [--profile NAME] [--json] <command>
 
 Commands:
   version                    Print the CLI version
+  start                      Start the local engine and select a model
+  stop                       Stop the local engine
+  restart                    Restart the local engine
+  status                     Query local engine status
+  logs                       Print local engine logs
+  ask REQUEST                Create a coding task from terminal text
+  command REQUEST            Alias for ask
+  watch TASK                 Follow task events
+  output TASK                Follow task output
+  shell TASK                 Open a human-owned task workspace shell
   init NAME                  Configure the first connection profile
   login NAME                 Add or replace a connection profile
   logout NAME                Remove a connection profile
   doctor                     Diagnose runtime, workers, schema, and channels
   runtime serve              Run the compatibility runtime in the foreground
-  runtime start              Start the runtime in the background
-  runtime stop               Stop the managed runtime
+  runtime start              Start the engine in the background
+  runtime stop               Stop the managed engine
   runtime restart            Restart the managed runtime
   runtime status             Query runtime process and API status
   runtime logs               Print the bounded managed-runtime log tail
@@ -128,6 +141,9 @@ Global flags:
   --no-color                 Disable color output
   --non-interactive          Refuse interactive prompts
   --timeout MILLISECONDS     Set request timeout
+  --model MODEL              Select the coding model for pxr start
+  --api-key-env NAME         Read the builder API key from a named env var
+  --review-api-key-env NAME  Read the reviewer API key from a named env var
   --dry-run                  Validate a mutation without writing
   --yes                      Confirm a destructive or high-risk command
   --follow                   Follow a durable event or output cursor
@@ -140,6 +156,157 @@ function runtimeEntry(): string {
   const packagedRuntime = path.resolve(cliDist, '../runtime/index.js');
   if (existsSync(packagedRuntime)) return packagedRuntime;
   return path.resolve(cliDist, '../../../dist/index.js');
+}
+
+const localProfileName = 'local';
+const lifecycleAliases = new Set([
+  'serve',
+  'start',
+  'stop',
+  'restart',
+  'status',
+  'logs',
+]);
+
+function localEndpoint(paths: ReturnType<typeof runtimePaths>): string {
+  return `unix://${paths.socketFile}`;
+}
+
+function localToken(): string {
+  return `pxr_${randomBytes(32).toString('base64url')}`;
+}
+
+function truthyEnvironment(value: string | undefined): boolean {
+  return /^(?:1|true|yes|on)$/i.test(value ?? '');
+}
+
+function unquoteEnvironmentValue(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).replace(/\\n/g, '\n');
+  }
+  const comment = trimmed.indexOf(' #');
+  return comment === -1 ? trimmed : trimmed.slice(0, comment).trimEnd();
+}
+
+function readDotEnv(directory = process.cwd()): NodeJS.ProcessEnv {
+  const filename = path.join(directory, '.env');
+  if (!existsSync(filename)) return {};
+  const environment: NodeJS.ProcessEnv = {};
+  for (const rawLine of readFileSync(filename, 'utf8').split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const match = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(
+      line,
+    );
+    const key = match?.[1];
+    if (!key) continue;
+    environment[key] = unquoteEnvironmentValue(match[2] ?? '');
+  }
+  return environment;
+}
+
+async function promptForModel(
+  defaultModel: string,
+): Promise<string | undefined> {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return undefined;
+  const { createInterface } = await import('node:readline/promises');
+  const readline = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  try {
+    const answer = await readline.question(`Model [${defaultModel}]: `);
+    return answer.trim() || defaultModel;
+  } finally {
+    readline.close();
+  }
+}
+
+async function runtimeStartContext(input: {
+  options: {
+    model?: string | undefined;
+    'api-key-env'?: string | undefined;
+    'review-api-key-env'?: string | undefined;
+    'non-interactive'?: boolean | undefined;
+  };
+  paths: ReturnType<typeof runtimePaths>;
+  store: ProfileStoreLike;
+}): Promise<{
+  endpoint: string;
+  environment: NodeJS.ProcessEnv;
+  model?: string | undefined;
+  profile: string;
+  token: string;
+}> {
+  const base = { ...readDotEnv(), ...process.env };
+  const endpoint = localEndpoint(input.paths);
+  const existing = await input.store.get(localProfileName).catch(() => null);
+  const token = base.API_BOOTSTRAP_TOKEN ?? existing?.token ?? localToken();
+  const explicitApiKeyName = input.options['api-key-env'];
+  const explicitReviewApiKeyName = input.options['review-api-key-env'];
+  const builderApiKey = explicitApiKeyName
+    ? base[explicitApiKeyName]
+    : (base.CODEX_BUILDER_API_KEY ?? base.OPENAI_API_KEY ?? base.CODEX_API_KEY);
+  const reviewerApiKey = explicitReviewApiKeyName
+    ? base[explicitReviewApiKeyName]
+    : base.CODEX_REVIEWER_API_KEY;
+  let model = input.options.model ?? base.CODEX_MODEL ?? base.OPENAI_MODEL;
+  if (!model && builderApiKey && !input.options['non-interactive']) {
+    model = await promptForModel('gpt-5.5');
+  }
+  const wantsCodex =
+    truthyEnvironment(base.CODEX_ENABLED) ||
+    Boolean(model) ||
+    Boolean(builderApiKey);
+  const environment: NodeJS.ProcessEnv = {
+    ...base,
+    API_BOOTSTRAP_ACTOR_ID: base.API_BOOTSTRAP_ACTOR_ID ?? 'local-owner',
+    API_BOOTSTRAP_ROLE: base.API_BOOTSTRAP_ROLE ?? 'OWNER',
+    API_BOOTSTRAP_TOKEN: token,
+  };
+  if (wantsCodex) {
+    if (!builderApiKey || !reviewerApiKey) {
+      throw new CliUsageError(
+        'pxr start with a model requires CODEX_BUILDER_API_KEY and CODEX_REVIEWER_API_KEY; use --api-key-env and --review-api-key-env to point at different env vars',
+      );
+    }
+    if (builderApiKey === reviewerApiKey) {
+      throw new CliUsageError(
+        'pxr start requires distinct builder and reviewer API keys by the current security policy',
+      );
+    }
+    if (!model) {
+      throw new CliUsageError(
+        'pxr start requires --model, CODEX_MODEL, or OPENAI_MODEL when model access is configured',
+      );
+    }
+    environment.CODEX_ENABLED = 'true';
+    environment.CODEX_BUILDER_API_KEY = builderApiKey;
+    environment.CODEX_REVIEWER_API_KEY = reviewerApiKey;
+    environment.CODEX_MODEL = model;
+  }
+  return { endpoint, environment, model, profile: localProfileName, token };
+}
+
+function requestText(parts: readonly (string | undefined)[]): string {
+  return parts
+    .filter(
+      (part): part is string =>
+        typeof part === 'string' && part.trim().length > 0,
+    )
+    .join(' ')
+    .trim();
+}
+
+function defaultTaskTitle(request: string): string {
+  const title = request.split(/\r?\n/)[0]?.trim() ?? '';
+  return title.length > 80
+    ? `${title.slice(0, 77)}...`
+    : title || 'Terminal command';
 }
 
 export async function runCli(
@@ -160,6 +327,9 @@ export async function runCli(
         color: { type: 'boolean', default: true },
         'non-interactive': { type: 'boolean', default: false },
         timeout: { type: 'string' },
+        model: { type: 'string' },
+        'api-key-env': { type: 'string' },
+        'review-api-key-env': { type: 'string' },
         version: { type: 'boolean', short: 'V', default: false },
         help: { type: 'boolean', short: 'h', default: false },
         endpoint: { type: 'string' },
@@ -203,18 +373,54 @@ export async function runCli(
         yes: { type: 'boolean', default: false },
       },
     });
-    const json = parsed.values.json;
-    const quiet = parsed.values.quiet;
+    const options = parsed.values;
+    const json = options.json;
+    const quiet = options.quiet;
     const print = (value: unknown, human: string): void => {
       if (json) io.stdout.write(`${JSON.stringify(value)}\n`);
       else if (!quiet) io.stdout.write(`${human}\n`);
     };
-    const [command, action, argument, ...extra] = parsed.positionals;
-    if (parsed.values.version) {
+    let [command, action, argument, ...extra] = parsed.positionals;
+    if (command && lifecycleAliases.has(command)) {
+      action = command;
+      command = 'runtime';
+    } else if (command === 'health') {
+      command = 'doctor';
+    } else if (command === 'tasks') {
+      command = 'task';
+      action = 'list';
+    } else if (
+      command === 'ask' ||
+      command === 'command' ||
+      command === 'cmd'
+    ) {
+      const request = requestText([action, argument, ...extra]);
+      command = 'task';
+      action = 'create';
+      argument = undefined;
+      extra = [];
+      if (request && !options.request) options.request = request;
+      if (request && !options.title) options.title = defaultTaskTitle(request);
+    } else if (command === 'watch') {
+      command = 'task';
+      argument = action;
+      action = 'watch';
+      options.follow = true;
+    } else if (command === 'output') {
+      command = 'task';
+      argument = action;
+      action = 'logs';
+      options.follow = true;
+    } else if (command === 'shell') {
+      command = 'task';
+      argument = action;
+      action = 'shell';
+    }
+    if (options.version) {
       print({ version: VERSION }, VERSION);
       return 0;
     }
-    if (parsed.values.help || !command) {
+    if (options.help || !command) {
       io.stdout.write(help);
       return 0;
     }
@@ -229,8 +435,8 @@ export async function runCli(
       const store = createStore();
       if (!store.save) throw new Error('Profile storage is unavailable');
       const name = action ?? 'default';
-      const endpoint = parsed.values.endpoint;
-      const token = parsed.values.token;
+      const endpoint = options.endpoint;
+      const token = options.token;
       if (!endpoint || !token) {
         throw new CliUsageError(
           'login requires --endpoint and --token; tokens are never prompted or printed',
@@ -268,14 +474,41 @@ export async function runCli(
         );
         return await child;
       }
-      if (action === 'start') {
+      if (action === 'start' || action === 'restart') {
+        const store = createStore();
+        if (!store.save) throw new Error('Profile storage is unavailable');
+        if (action === 'restart') {
+          await (dependencies.stopRuntimeProcess ?? stopRuntimeProcess)(paths);
+        }
+        const context = await runtimeStartContext({ options, paths, store });
         const pid = await (
           dependencies.startRuntimeProcess ?? startRuntimeProcess
         )({
           paths,
           entry: (dependencies.runtimeEntry ?? runtimeEntry)(),
+          environment: context.environment,
         });
-        print({ running: true, pid }, `Praxrail runtime started as PID ${pid}`);
+        await store.save(
+          context.profile,
+          {
+            endpoint: context.endpoint,
+            token: context.token,
+            allowInsecureRemote: false,
+          },
+          true,
+        );
+        print(
+          {
+            running: true,
+            pid,
+            profile: context.profile,
+            endpoint: context.endpoint,
+            model: context.model ?? null,
+          },
+          `Praxrail engine ${action === 'restart' ? 'restarted' : 'started'} as PID ${pid}${
+            context.model ? ` using ${context.model}` : ''
+          }`,
+        );
         return 0;
       }
       if (action === 'stop') {
@@ -285,48 +518,33 @@ export async function runCli(
         print(
           { running: false, stopped },
           stopped
-            ? 'Praxrail runtime stopped'
-            : 'Praxrail runtime is not running',
-        );
-        return 0;
-      }
-      if (action === 'restart') {
-        await (dependencies.stopRuntimeProcess ?? stopRuntimeProcess)(paths);
-        const pid = await (
-          dependencies.startRuntimeProcess ?? startRuntimeProcess
-        )({
-          paths,
-          entry: (dependencies.runtimeEntry ?? runtimeEntry)(),
-        });
-        print(
-          { running: true, pid },
-          `Praxrail runtime restarted as PID ${pid}`,
+            ? 'Praxrail engine stopped'
+            : 'Praxrail engine is not running',
         );
         return 0;
       }
       if (action === 'status') {
         const pid = await (dependencies.runtimePid ?? runtimePid)(paths);
         if (!pid) {
-          print({ running: false }, 'Praxrail runtime is not running');
+          print({ running: false }, 'Praxrail engine is not running');
           return 3;
         }
         const store = (
           dependencies.createProfileStore ?? (() => new ProfileStore())
         )();
-        const profile = await store
-          .get(parsed.values.profile)
-          .catch(() => null);
+        const profile = await store.get(options.profile).catch(() => null);
         if (!profile) {
           print(
             { running: true, pid },
-            `Praxrail runtime is running as PID ${pid}`,
+            `Praxrail engine is running as PID ${pid}`,
           );
           return 0;
         }
         const createClient =
           dependencies.createClient ??
-          ((options: PraxrailClientOptions) => new PraxrailClient(options));
-        const timeoutMs = timeoutValue(parsed.values.timeout);
+          ((clientOptions: PraxrailClientOptions) =>
+            new PraxrailClient(clientOptions));
+        const timeoutMs = timeoutValue(options.timeout);
         const client = createClient({
           ...profile,
           ...(timeoutMs === undefined ? {} : { timeoutMs }),
@@ -334,7 +552,7 @@ export async function runCli(
         const status = await client.runtimeStatus();
         print(
           { running: true, pid, status },
-          `Praxrail runtime ${status.status.toLowerCase()} as PID ${pid}`,
+          `Praxrail engine ${status.status.toLowerCase()} as PID ${pid}`,
         );
         return status.status === 'READY' ? 0 : 4;
       }
@@ -342,7 +560,7 @@ export async function runCli(
         const content = await (dependencies.readRuntimeLog ?? readRuntimeLog)(
           paths,
         );
-        print({ content }, content || 'No runtime logs available');
+        print({ content }, content || 'No engine logs available');
         return 0;
       }
     }
@@ -379,7 +597,7 @@ export async function runCli(
         'support',
       ].includes(command)
     ) {
-      throw new CliUsageError('Unknown command. Run praxrail --help.');
+      throw new CliUsageError('Unknown command. Run pxr --help.');
     }
     const destructive =
       (command === 'project' && action === 'archive') ||
@@ -396,8 +614,8 @@ export async function runCli(
       );
     }
     const store = createStore();
-    const profile = await store.get(parsed.values.profile);
-    const timeoutMs = timeoutValue(parsed.values.timeout);
+    const profile = await store.get(options.profile);
+    const timeoutMs = timeoutValue(options.timeout);
     const createClient =
       dependencies.createClient ??
       ((options: PraxrailClientOptions) => new PraxrailClient(options));
@@ -410,7 +628,7 @@ export async function runCli(
       action,
       argument,
       extra,
-      options: parsed.values,
+      options,
       client,
       emit: print,
       spawnShell: dependencies.spawnShell ?? spawnShell,
@@ -421,7 +639,7 @@ export async function runCli(
       }
       return result.exitCode ?? 0;
     }
-    throw new CliUsageError('Unknown command. Run praxrail --help.');
+    throw new CliUsageError('Unknown command. Run pxr --help.');
   } catch (error) {
     const code = exitCode(error);
     const message = error instanceof Error ? error.message : 'Praxrail failed';

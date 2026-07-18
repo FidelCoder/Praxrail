@@ -3,7 +3,7 @@
 ## Grammar
 
 ```text
-praxrail [global flags] <group> <command> [arguments]
+pxr [global flags] <command> [arguments]
 ```
 
 Implemented groups are `runtime`, `profile`, `project`, `repo`, `task`,
@@ -52,7 +52,10 @@ commands require `--yes` after the caller has reviewed the target and reason.
 ## Command Surface
 
 ```text
-praxrail version
+pxr version
+pxr start|stop|restart|status|logs
+pxr ask|command|cmd REQUEST
+pxr watch|output|shell TASK
 praxrail runtime serve|start|stop|restart|status|logs
 praxrail profile list|use
 praxrail project create|list|show|update|archive
@@ -76,17 +79,17 @@ log commands resume from durable cursors and honor cancellation signals.
 ## Representative Transcripts
 
 ```text
-$ praxrail --json version
+$ pxr --json version
 {"version":"0.3.0"}
 
-$ praxrail --json runtime status
+$ pxr --json status
 {"running":true,"pid":4120,"status":{"apiVersion":"v1","status":"READY"}}
 
-$ praxrail task publish PXR-0001 --reason "review passed"
+$ pxr task publish PXR-0001 --reason "review passed"
 This command requires --yes after reviewing the target and reason
 
-$ praxrail --json unknown
-{"error":"USAGE_ERROR","message":"Unknown command. Run praxrail --help.","exitCode":2}
+$ pxr --json unknown
+{"error":"USAGE_ERROR","message":"Unknown command. Run pxr --help.","exitCode":2}
 ```
 
 `--help`, completion scripts, and the manpage are generated release artifacts.

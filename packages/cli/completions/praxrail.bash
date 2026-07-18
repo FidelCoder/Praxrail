@@ -2,7 +2,7 @@
 _praxrail() {
   local cur="${COMP_WORDS[COMP_CWORD]}"
   if [[ COMP_CWORD -eq 1 ]]; then
-    COMPREPLY=( $(compgen -W "version init login logout doctor runtime profile project repo task channel approval upgrade support" -- "$cur") )
+    COMPREPLY=( $(compgen -W "version start stop restart status logs ask command cmd watch output shell init login logout doctor runtime profile project repo task channel approval upgrade support" -- "$cur") )
     return
   fi
   case "${COMP_WORDS[1]}" in
@@ -18,3 +18,4 @@ _praxrail() {
   esac
 }
 complete -F _praxrail praxrail
+complete -F _praxrail pxr

@@ -4,10 +4,25 @@ Praxrail is shipped as three public packages:
 
 - `praxrail-core` for shared schemas and contracts;
 - `praxrail-client` for typed local or remote runtime access; and
-- `praxrail` for the `praxrail` terminal command.
+- `praxrail` for the `praxrail` and `pxr` terminal commands.
 
-The source tree currently builds and verifies the packages locally. Registry
-publication is gated by the release workflow and npm provenance evidence.
+Install the terminal package with Node.js 22.12+ available on your PATH:
+
+```bash
+npm install -g praxrail
+pxr --version
+```
+
+Start the local engine from a directory containing your Praxrail `.env`, or from a shell where the same variables are exported:
+
+```bash
+pxr start --model <model>
+pxr status
+pxr ask "Build the requested change" --project <project-id> --repository <repository-id>
+pxr stop
+```
+
+`pxr start` creates and selects a local Unix-socket profile automatically. When model access is enabled, the current security policy requires distinct `CODEX_BUILDER_API_KEY` and `CODEX_REVIEWER_API_KEY` values; use `--api-key-env` and `--review-api-key-env` when your shell stores them under custom names.
 
 ## From Source
 
@@ -26,12 +41,13 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Then create a CLI profile:
+Then exercise the CLI:
 
 ```bash
-praxrail login local --endpoint http://127.0.0.1:3000 --token <bootstrap-token>
-praxrail runtime status
-praxrail doctor
+pnpm cli -- start --model <model>
+pnpm cli -- status
+pnpm cli -- doctor
+pnpm cli -- stop
 ```
 
 For production use, run the runtime with `DATABASE_URL` scoped to the app role

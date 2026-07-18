@@ -1,6 +1,6 @@
 {
   "name": "praxrail",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": false,
   "description": "Terminal interface for Praxrail.",
   "license": "MIT",
@@ -17,7 +17,8 @@
     "access": "public"
   },
   "bin": {
-    "praxrail": "./dist/bin.js"
+    "praxrail": "./dist/bin.js",
+    "pxr": "./dist/bin.js"
   },
   "exports": {
     ".": {

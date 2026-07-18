@@ -217,14 +217,14 @@ describe('product packages', () => {
       stderr: { write: (value: string) => (stderr += value) },
     };
     expect(await runCli(['--json', 'version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.3.1' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.2' });
     stdout = '';
     expect(await runCli(['unknown'], io)).toBe(2);
     expect(stderr).toContain('Unknown command');
     stdout = '';
     stderr = '';
     expect(await runCli(['--json', '--version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.3.1' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.2' });
 
     stdout = '';
     stderr = '';
@@ -262,6 +262,196 @@ describe('product packages', () => {
       error: 'ACTION_NOT_PERMITTED',
       exitCode: 6,
     });
+  });
+
+  it('supports pxr engine aliases, model selection, and terminal task prompts', async () => {
+    const previous = {
+      API_BOOTSTRAP_TOKEN: process.env.API_BOOTSTRAP_TOKEN,
+      BUILDER_TEST_KEY: process.env.BUILDER_TEST_KEY,
+      REVIEWER_TEST_KEY: process.env.REVIEWER_TEST_KEY,
+    };
+    process.env.API_BOOTSTRAP_TOKEN = `pxr_${'b'.repeat(40)}`;
+    process.env.BUILDER_TEST_KEY = 'builder-key-with-safe-length';
+    process.env.REVIEWER_TEST_KEY = 'reviewer-key-with-safe-length';
+    let stdout = '';
+    let stderr = '';
+    const io = {
+      stdout: { write: (value: string) => (stdout += value) },
+      stderr: { write: (value: string) => (stderr += value) },
+    };
+    const paths = {
+      directory: '/tmp/pxr-state',
+      pidFile: '/tmp/pxr-state/runtime.pid',
+      logFile: '/tmp/pxr-state/runtime.log',
+      socketFile: '/tmp/pxr-state/runtime.sock',
+    };
+    let startEnvironment: Record<string, string | undefined> | null = null;
+    let savedProfile: {
+      name: string;
+      profile: {
+        endpoint: string;
+        token: string;
+        allowInsecureRemote: boolean;
+      };
+    } | null = null;
+    try {
+      expect(
+        await runCli(
+          [
+            '--json',
+            'start',
+            '--model',
+            'gpt-terminal',
+            '--api-key-env',
+            'BUILDER_TEST_KEY',
+            '--review-api-key-env',
+            'REVIEWER_TEST_KEY',
+          ],
+          io,
+          {
+            runtimePaths: () => paths,
+            startRuntimeProcess: async (input) => {
+              startEnvironment = { ...input.environment };
+              return 456;
+            },
+            createProfileStore: () => ({
+              get: async () => Promise.reject(new Error('missing')),
+              list: async () => ({ current: null, profiles: {} }),
+              use: async () => undefined,
+              save: async (name, profile) => {
+                savedProfile = { name, profile };
+              },
+            }),
+          },
+        ),
+      ).toBe(0);
+      expect(JSON.parse(stdout)).toMatchObject({
+        running: true,
+        pid: 456,
+        profile: 'local',
+        endpoint: 'unix:///tmp/pxr-state/runtime.sock',
+        model: 'gpt-terminal',
+      });
+      expect(savedProfile).toMatchObject({
+        name: 'local',
+        profile: {
+          endpoint: 'unix:///tmp/pxr-state/runtime.sock',
+          token: `pxr_${'b'.repeat(40)}`,
+          allowInsecureRemote: false,
+        },
+      });
+      expect(startEnvironment).not.toBeNull();
+      const runtimeEnvironment = startEnvironment as unknown as Record<
+        string,
+        string | undefined
+      >;
+      expect(runtimeEnvironment.CODEX_ENABLED).toBe('true');
+      expect(runtimeEnvironment.CODEX_MODEL).toBe('gpt-terminal');
+      expect(runtimeEnvironment.CODEX_BUILDER_API_KEY).toBe(
+        'builder-key-with-safe-length',
+      );
+      expect(runtimeEnvironment.CODEX_REVIEWER_API_KEY).toBe(
+        'reviewer-key-with-safe-length',
+      );
+
+      stdout = '';
+      stderr = '';
+      let capturedTask: {
+        title: string;
+        request: string;
+        projectId: string;
+        repositoryId: string;
+      } | null = null;
+      const now = '2026-07-18T10:00:00.000Z';
+      expect(
+        await runCli(
+          [
+            '--json',
+            'ask',
+            'Build',
+            'a',
+            'landing',
+            'page',
+            '--project',
+            'project-1',
+            '--repository',
+            'repo-1',
+          ],
+          io,
+          {
+            createProfileStore: () => ({
+              get: async () => ({
+                endpoint: 'unix:///tmp/pxr-state/runtime.sock',
+                token,
+                allowInsecureRemote: false,
+              }),
+              list: async () => ({ current: 'local', profiles: {} }),
+              use: async () => undefined,
+            }),
+            createClient: () => ({
+              runtimeStatus: async () => ({
+                apiVersion: 'v1' as const,
+                runtimeVersion: '0.3.0',
+                status: 'READY' as const,
+                database: true,
+                queue: true,
+                mode: 'LOCAL' as const,
+              }),
+              createTask: async (input) => {
+                capturedTask = input;
+                return {
+                  id: '44444444-4444-4444-8444-444444444444',
+                  taskKey: 'PXR-1',
+                  projectId: input.projectId,
+                  repositoryId: input.repositoryId,
+                  title: input.title,
+                  problem: input.request,
+                  desiredOutcome: input.request,
+                  status: 'INBOX' as const,
+                  priority: input.priority ?? 50,
+                  risk: null,
+                  contract: null,
+                  version: 1,
+                  paused: false,
+                  blockedReason: null,
+                  budgetUsd: input.budgetUsd ?? null,
+                  spentUsd: 0,
+                  currentAttempt: 0,
+                  maximumAttempts: 3,
+                  archivedAt: null,
+                  requiredAction: 'Clarify and refine the task contract',
+                  createdAt: now,
+                  updatedAt: now,
+                };
+              },
+            }),
+          },
+        ),
+      ).toBe(0);
+      expect(capturedTask).toMatchObject({
+        title: 'Build a landing page',
+        request: 'Build a landing page',
+        projectId: 'project-1',
+        repositoryId: 'repo-1',
+      });
+      expect(JSON.parse(stdout)).toMatchObject({ taskKey: 'PXR-1' });
+    } finally {
+      if (previous.API_BOOTSTRAP_TOKEN === undefined) {
+        delete process.env.API_BOOTSTRAP_TOKEN;
+      } else {
+        process.env.API_BOOTSTRAP_TOKEN = previous.API_BOOTSTRAP_TOKEN;
+      }
+      if (previous.BUILDER_TEST_KEY === undefined) {
+        delete process.env.BUILDER_TEST_KEY;
+      } else {
+        process.env.BUILDER_TEST_KEY = previous.BUILDER_TEST_KEY;
+      }
+      if (previous.REVIEWER_TEST_KEY === undefined) {
+        delete process.env.REVIEWER_TEST_KEY;
+      } else {
+        process.env.REVIEWER_TEST_KEY = previous.REVIEWER_TEST_KEY;
+      }
+    }
   });
 
   it('dispatches stable product commands and confirms high-risk actions', async () => {
