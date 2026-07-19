@@ -33,7 +33,7 @@ boundaries:
 - `observability`: logs, metrics, traces, and cost records; and
 - `http`: validation and transport only.
 
-PostgreSQL is authoritative. Telegram messages, GitHub payloads, logs, process
+Current 0.3.x compatibility storage keeps PostgreSQL authoritative. Hosted product mode targets MongoDB/Atlas after the migration in ADR 0005. Telegram messages, GitHub payloads, logs, process
 memory, and planner context are not sources of truth.
 
 Every externally initiated operation follows this shape:

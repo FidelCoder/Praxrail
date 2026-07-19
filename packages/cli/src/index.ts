@@ -95,7 +95,7 @@ function exitCode(error: unknown): number {
   return 1;
 }
 
-const VERSION = '0.3.4';
+const VERSION = '0.3.5';
 const help = `Praxrail ${VERSION}
 
 Usage: pxr [--profile NAME] [--json] <command>

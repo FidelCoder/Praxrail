@@ -1,5 +1,19 @@
 # Deployment And Rollback
 
+## Hosted Product Boundary
+
+The core Praxrail engine is not a Vercel deployment target. The coding engine,
+queue workers, repository worktrees, and publish pipeline require persistent
+workers, durable locks, and controlled filesystem/process execution. Vercel can
+host a documentation site, dashboard, login pages, or a thin HTTP facade, but it
+should forward work to a real Praxrail control plane.
+
+Hosted product mode targets MongoDB/Atlas for control-plane persistence and a
+server-side secret store for tenant model-provider keys. The current 0.3.x
+compatibility runtime still uses PostgreSQL until the MongoDB repositories,
+indexes, transaction boundaries, backup/restore, and integration tests are
+implemented.
+
 ## Preconditions
 
 - PXR-070 has two `PASSED` acceptance records with owner signoff.

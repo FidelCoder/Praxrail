@@ -1,6 +1,6 @@
 {
   "name": "praxrail-core",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": false,
   "description": "Transport-independent Praxrail product contracts.",
   "license": "MIT",
@@ -31,6 +31,7 @@
     "zod": "4.4.3"
   },
   "files": [
+    "README.md",
     "dist/**/*.js",
     "dist/**/*.js.map",
     "dist/**/*.d.ts",

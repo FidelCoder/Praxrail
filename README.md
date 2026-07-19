@@ -14,7 +14,7 @@ The implementation includes:
 
 - strict task contracts and lifecycle policy;
 - multi-project, multi-repository onboarding and repository-specific policy;
-- PostgreSQL persistence, jobs, leases, locks, events, and idempotency;
+- durable persistence, jobs, leases, locks, events, and idempotency; current 0.3.x compatibility runtime uses PostgreSQL while hosted mode targets MongoDB/Atlas;
 - authenticated Telegram intake and approval commands;
 - GitHub App authentication and signed webhook intake;
 - structured logs, metrics, traces, and cost accounting;
@@ -31,7 +31,7 @@ approvals, clarifications, and concise remote actions.
 
 Start with the [installation guide](docs/product/installation.md),
 [quickstart](docs/product/quickstart.md), [terminal workflows](docs/product/terminal-workflows.md),
-[communications guide](docs/product/communications.md), and
+[communications guide](docs/product/communications.md), [hosted control-plane guide](docs/product/hosted-control-plane.md), and
 [upgrade/support guide](docs/product/upgrades-and-support.md). Install the terminal package with `npm install -g praxrail`, then use `pxr start --model <model> --base-url <url>`, `pxr ask "..."`, and `pxr stop` for the shell-first workflow. During source development, run `pnpm cli -- version` to exercise the CLI entry point.
 
 ## Local Development
@@ -75,7 +75,7 @@ resources, and review evidence are configured. See the
 ## Architecture
 
 See [architecture](docs/architecture.md), [product scope](docs/decisions/0003-repository-agnostic-agentic-coding.md),
-[launch decisions](docs/decisions/0001-initial-launch-defaults.md), the
+[launch decisions](docs/decisions/0001-initial-launch-defaults.md), [MongoDB/hosting decision](docs/decisions/0005-mongodb-hosted-control-plane.md), the
 [role permission matrix](docs/security/role-permissions.md), and the
 [implementation status](docs/implementation-status.md).
 

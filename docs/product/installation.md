@@ -6,6 +6,8 @@ Praxrail is shipped as three public packages:
 - `praxrail-client` for typed local or remote runtime access; and
 - `praxrail` for the `praxrail` and `pxr` terminal commands.
 
+Each published package includes its own npm README with install, usage, and boundary guidance.
+
 Install the terminal package with Node.js 22.12+ available on your PATH:
 
 ```bash
@@ -50,9 +52,9 @@ pnpm cli -- doctor
 pnpm cli -- stop
 ```
 
-For production use, run the runtime with `DATABASE_URL` scoped to the app role
+For current self-hosted compatibility use, run the runtime with `DATABASE_URL` scoped to the app role
 and `MIGRATION_DATABASE_URL` scoped to the migrator role. Do not place API
-tokens, provider tokens, or webhook secrets in repository files.
+tokens, provider tokens, or webhook secrets in repository files. Hosted mode targets MongoDB/Atlas and server-side secret storage so normal users do not manage an online `.env` file.
 
 ## Package Verification
 

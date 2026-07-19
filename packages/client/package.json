@@ -1,6 +1,6 @@
 {
   "name": "praxrail-client",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": false,
   "description": "Typed local and remote client for Praxrail.",
   "license": "MIT",
@@ -32,6 +32,7 @@
     "zod": "4.4.3"
   },
   "files": [
+    "README.md",
     "dist/**/*.js",
     "dist/**/*.js.map",
     "dist/**/*.d.ts",
