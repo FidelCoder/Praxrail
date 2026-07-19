@@ -1,7 +1,7 @@
 # Terminal Workflows
 
 The terminal is the complete operational interface for active developers.
-`pxr start` opens an interactive prompt in a real terminal after the engine boots; `pxr chat`, `pxr interactive`, and `pxr repl` open the same prompt later. Plain text in the prompt creates coding tasks, while slash commands such as `/status`, `/tasks`, `/use <project-id> <repository-id>`, and `/exit` control the session.
+`pxr start` opens an interactive prompt in a real terminal after the engine boots; `pxr chat`, `pxr interactive`, and `pxr repl` attach to the same prompt later. Plain text in the prompt creates coding tasks. Prompt commands such as `pxr status`, `pxr tasks`, `/use <project-id> <repository-id>`, and `pxr stop` control the session; `pxr stop` stops the engine and returns to the normal shell.
 
 Scripts should prefer `--json`, `--non-interactive`, stable exit codes, and explicit `--yes` for high-risk commands.
 

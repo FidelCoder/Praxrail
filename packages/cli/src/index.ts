@@ -98,7 +98,7 @@ function exitCode(error: unknown): number {
   return 1;
 }
 
-const VERSION = '0.3.6';
+const VERSION = '0.3.7';
 const help = `Praxrail ${VERSION}
 
 Usage: pxr [--profile NAME] [--json] <command>
@@ -159,9 +159,10 @@ Global flags:
 
 Interactive mode:
   In a real terminal, pxr start starts the engine and opens the prompt.
-  Run pxr or pxr chat --project <id> --repository <id> to open it later.
-  Plain text creates a task. Slash commands include /help, /status, /tasks,
-  /use <project-id> <repository-id>, /project <id>, /repo <id>, and /exit.
+  Type natural requests to create tasks; type pxr stop to stop and return to shell.
+  Run pxr or pxr chat --project <id> --repository <id> to attach later.
+  Commands include /help, /status, /tasks, /use <project-id> <repository-id>,
+  /project <id>, /repo <id>, and pxr stop.
   Use pxr start --non-interactive or pxr start --json for scripts.
 `;
 
@@ -351,10 +352,10 @@ const interactiveHelp = `Interactive Praxrail commands:
   /use <project-id> <repo-id>    Set project and repository defaults
   /project <project-id>          Set the default project
   /repo <repo-id>                Set the default repository
-  /exit                         Leave the prompt
+  pxr stop                       Stop Praxrail and return to your shell
 
 Plain text creates a coding task using the current project/repository defaults.
-Start with: pxr chat --project <project-id> --repository <repository-id>
+Start with: pxr start --project <project-id> --repository <repository-id>
 `;
 
 function recordText(value: Record<string, unknown>, key: string): string {
@@ -391,6 +392,37 @@ async function* promptInteractiveLines(io: CliIo): AsyncGenerator<string> {
   }
 }
 
+function normalizedInteractiveCommand(line: string): string {
+  return line.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function isInteractiveStopCommand(line: string): boolean {
+  return [
+    'pxr stop',
+    'praxrail stop',
+    'pxr runtime stop',
+    'praxrail runtime stop',
+    '/stop',
+    'stop',
+    '/exit',
+    '/quit',
+    'exit',
+    'quit',
+  ].includes(normalizedInteractiveCommand(line));
+}
+
+function isInteractiveStatusCommand(line: string): boolean {
+  return ['/status', 'status', 'pxr status', 'praxrail status'].includes(
+    normalizedInteractiveCommand(line),
+  );
+}
+
+function isInteractiveTasksCommand(line: string): boolean {
+  return ['/tasks', 'tasks', 'pxr tasks', 'praxrail tasks'].includes(
+    normalizedInteractiveCommand(line),
+  );
+}
+
 async function runInteractiveSession(input: {
   client: PraxrailClient;
   io: CliIo;
@@ -400,23 +432,24 @@ async function runInteractiveSession(input: {
     'dry-run'?: boolean | undefined;
   };
   lines?: InteractiveLines | undefined;
+  stopRuntime?: (() => Promise<boolean>) | undefined;
 }): Promise<number> {
   let project = input.options.project;
   let repository = input.options.repository;
   const lines = input.lines ?? promptInteractiveLines(input.io);
   input.io.stdout.write(
-    'Praxrail interactive mode. Type /help for commands, /exit to leave.\n',
+    'Praxrail interactive mode. Type pxr stop to stop and return to shell; /help for commands.\n',
   );
   for await (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) continue;
-    if (
-      line === '/exit' ||
-      line === '/quit' ||
-      line === 'exit' ||
-      line === 'quit'
-    ) {
-      input.io.stdout.write('Leaving Praxrail interactive mode.\n');
+    if (isInteractiveStopCommand(line)) {
+      const stopped = input.stopRuntime ? await input.stopRuntime() : false;
+      input.io.stdout.write(
+        stopped
+          ? 'Praxrail engine stopped. Returning to shell.\n'
+          : 'Praxrail engine is not running. Returning to shell.\n',
+      );
       return 0;
     }
     if (line === '/help' || line === 'help') {
@@ -446,14 +479,14 @@ async function runInteractiveSession(input: {
       input.io.stdout.write(`Using repository ${repository}.\n`);
       continue;
     }
-    if (line === '/status') {
+    if (isInteractiveStatusCommand(line)) {
       const status = await input.client.runtimeStatus();
       input.io.stdout.write(
         `Runtime ${status.status.toLowerCase()} (${status.mode}).\n`,
       );
       continue;
     }
-    if (line === '/tasks') {
+    if (isInteractiveTasksCommand(line)) {
       const tasks = await input.client.listTaskDetails({
         ...(project ? { projectId: project } : {}),
         ...(repository ? { repositoryId: repository } : {}),
@@ -730,6 +763,10 @@ export async function runCli(
           io,
           options,
           lines: dependencies.interactiveLines,
+          stopRuntime: async () =>
+            await (dependencies.stopRuntimeProcess ?? stopRuntimeProcess)(
+              paths,
+            ),
         });
       }
       if (action === 'stop') {
@@ -822,6 +859,8 @@ export async function runCli(
         io,
         options,
         lines: dependencies.interactiveLines,
+        stopRuntime: async () =>
+          await (dependencies.stopRuntimeProcess ?? stopRuntimeProcess)(paths),
       });
     }
     if (

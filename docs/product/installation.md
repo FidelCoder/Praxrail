@@ -21,12 +21,12 @@ Start the local engine from a directory containing your Praxrail `.env`, or from
 pxr start --model <model> --base-url https://share-ai.ckbdev.com
 ```
 
-In an interactive terminal, `pxr start` creates and selects a local Unix-socket profile, starts the engine, and opens the Praxrail prompt:
+In an interactive terminal, `pxr start` creates and selects a local Unix-socket profile, starts the engine, and opens the Praxrail prompt. Type `pxr stop` inside that prompt to stop the engine and return to your shell:
 
 ```text
 pxr> Build the requested change
 pxr> /tasks
-pxr> /exit
+pxr> pxr stop
 ```
 
 Use `pxr start --non-interactive` or `pxr start --json` when automation should start the engine and return immediately. You can also open the prompt later with `pxr chat --project <project-id> --repository <repository-id>` or submit a single task with `pxr ask "Build the requested change" --project <project-id> --repository <repository-id>`.

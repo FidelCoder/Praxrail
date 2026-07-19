@@ -73,7 +73,7 @@ praxrail support bundle
 praxrail doctor
 ```
 
-`pxr start` accepts `--model` and `--base-url` for terminal-first model selection and OpenAI-compatible proxy routing. In a TTY, successful human-mode `pxr start` opens the interactive prompt; scripts should use `--non-interactive` or `--json`. `pxr chat`, `pxr interactive`, and `pxr repl` open the prompt without starting a new engine.
+`pxr start` accepts `--model` and `--base-url` for terminal-first model selection and OpenAI-compatible proxy routing. In a TTY, successful human-mode `pxr start` opens the interactive prompt; scripts should use `--non-interactive` or `--json`. Inside the prompt, `pxr stop` stops the managed engine and returns to the shell. `pxr chat`, `pxr interactive`, and `pxr repl` attach to the prompt without starting a new engine.
 
 Safe reads and commands carrying an idempotency key may retry bounded transient
 failures. Non-idempotent mutations are never retried automatically. Watch and
@@ -92,7 +92,7 @@ $ pxr task publish PXR-0001 --reason "review passed"
 This command requires --yes after reviewing the target and reason
 
 $ pxr chat --project project-1 --repository repo-1
-Praxrail interactive mode. Type /help for commands, /exit to leave.
+Praxrail interactive mode. Type pxr stop to stop and return to shell; /help for commands.
 pxr> Build a status dashboard
 PXR-0002  INBOX  Build a status dashboard
 

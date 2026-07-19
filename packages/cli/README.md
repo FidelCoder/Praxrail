@@ -19,12 +19,12 @@ Run `pxr start` from a directory containing your Praxrail `.env`, or export the 
 pxr start --model gpt-5.5 --base-url https://share-ai.ckbdev.com
 ```
 
-In an interactive terminal, `pxr start` starts the engine and then opens the Praxrail prompt. Use `pxr start --non-interactive` or `pxr start --json` for scripts that should only boot the engine and exit.
+In an interactive terminal, `pxr start` starts the engine and then opens the Praxrail prompt. Type normal requests to create tasks, and type `pxr stop` inside the prompt to stop the engine and return to your shell. Use `pxr start --non-interactive` or `pxr start --json` for scripts that should only boot the engine and exit.
 
 ```text
 pxr> Build the requested change
 pxr> /tasks
-pxr> /exit
+pxr> pxr stop
 ```
 
 Current 0.3.x releases run a local/remote Praxrail runtime and require a durable runtime database. The existing compatibility runtime uses PostgreSQL via `DATABASE_URL`; the product roadmap moves shared hosted control-plane state to MongoDB/Atlas so end users do not need to manage local database credentials.
@@ -52,7 +52,7 @@ pxr shell <task-id>
 pxr stop
 ```
 
-`pxr chat`, `pxr interactive`, and `pxr repl` keep a prompt open so active developers can type naturally. `pxr ask "..."` remains the single-command form for scripts and quick one-offs.
+`pxr chat`, `pxr interactive`, and `pxr repl` attach to the prompt so active developers can type naturally. `pxr ask "..."` remains the single-command form for scripts and quick one-offs.
 
 Email and Telegram are for notifications and bounded remote actions. Active development stays in the terminal.
 

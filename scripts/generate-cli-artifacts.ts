@@ -127,7 +127,7 @@ _praxrail "$@"
 const groupReference = Object.entries(groups)
   .map(([group, actions]) => `.TP\n.B ${group}\n${actions.join(', ')}`)
   .join('\n');
-const manual = `.TH PRAXRAIL 1 "2026-07-18" "Praxrail 0.3.6" "Praxrail Manual"
+const manual = `.TH PRAXRAIL 1 "2026-07-18" "Praxrail 0.3.7" "Praxrail Manual"
 .SH NAME
 pxr - terminal client for the Praxrail autonomous coding runtime
 .SH SYNOPSIS

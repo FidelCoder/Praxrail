@@ -33,7 +33,7 @@ Inside the prompt:
 ```text
 pxr> Make validation deterministic
 pxr> /tasks
-pxr> /exit
+pxr> pxr stop
 ```
 
 Scripted flows can still use the stable command form:

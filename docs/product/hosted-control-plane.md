@@ -11,7 +11,7 @@ pxr start --model gpt-5.5
 # Praxrail opens pxr> in an interactive terminal
 pxr> Build the requested change
 pxr> /tasks
-pxr> /exit
+pxr> pxr stop
 ```
 
 `pxr ask "..."` remains available for scripts and one-off task creation. The CLI stores only a runtime/profile token locally. Provider API keys, Telegram secrets, GitHub credentials, repository policy, billing state, and task state stay in the hosted control plane.

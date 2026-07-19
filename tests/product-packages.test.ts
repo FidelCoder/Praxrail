@@ -217,14 +217,14 @@ describe('product packages', () => {
       stderr: { write: (value: string) => (stderr += value) },
     };
     expect(await runCli(['--json', 'version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.3.6' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.7' });
     stdout = '';
     expect(await runCli(['unknown'], io)).toBe(2);
     expect(stderr).toContain('Unknown command');
     stdout = '';
     stderr = '';
     expect(await runCli(['--json', '--version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.3.6' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.7' });
 
     stdout = '';
     stderr = '';
@@ -474,6 +474,7 @@ describe('product packages', () => {
       repositoryId: string;
       dryRun?: boolean | undefined;
     }[] = [];
+    let stopped = false;
     const taskFixture = (index: number, title: string) => ({
       id: `${index}${index}${index}${index}${index}${index}${index}${index}-${index}${index}${index}${index}-4${index}${index}${index}-8${index}${index}${index}-${index}${index}${index}${index}${index}${index}${index}${index}${index}${index}${index}${index}`,
       taskKey: `PXR-${index}`,
@@ -504,12 +505,12 @@ describe('product packages', () => {
         io,
         {
           interactiveLines: [
-            '/status',
-            '/tasks',
+            'pxr status',
+            'pxr tasks',
             'Build a status dashboard',
             '/use project-2 repo-2',
             'Add tests',
-            '/exit',
+            'pxr stop',
           ],
           createProfileStore: () => ({
             get: async () => ({
@@ -520,6 +521,16 @@ describe('product packages', () => {
             list: async () => ({ current: 'local', profiles: {} }),
             use: async () => undefined,
           }),
+          runtimePaths: () => ({
+            directory: '/tmp/pxr-state',
+            pidFile: '/tmp/pxr-state/runtime.pid',
+            logFile: '/tmp/pxr-state/runtime.log',
+            socketFile: '/tmp/pxr-state/runtime.sock',
+          }),
+          stopRuntimeProcess: async () => {
+            stopped = true;
+            return true;
+          },
           createClient: () => ({
             runtimeStatus: async () => ({
               apiVersion: 'v1' as const,
@@ -540,12 +551,14 @@ describe('product packages', () => {
     ).toBe(0);
     expect(stderr).toBe('');
     expect(stdout).toContain('Praxrail interactive mode');
+    expect(stdout).toContain('Type pxr stop to stop and return to shell');
     expect(stdout).toContain('Runtime ready (LOCAL).');
     expect(stdout).toContain('PXR-9  INBOX  Existing task');
     expect(stdout).toContain('PXR-1  INBOX  Build a status dashboard');
     expect(stdout).toContain('Using project project-2 and repository repo-2.');
     expect(stdout).toContain('PXR-2  INBOX  Add tests');
-    expect(stdout).toContain('Leaving Praxrail interactive mode.');
+    expect(stdout).toContain('Praxrail engine stopped. Returning to shell.');
+    expect(stopped).toBe(true);
     expect(created).toEqual([
       {
         title: 'Build a status dashboard',
