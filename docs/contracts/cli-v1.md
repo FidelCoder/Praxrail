@@ -54,6 +54,7 @@ commands require `--yes` after the caller has reviewed the target and reason.
 ```text
 pxr version
 pxr start|stop|restart|status|logs
+pxr chat|interactive|repl
 pxr ask|command|cmd REQUEST
 pxr watch|output|shell TASK
 praxrail runtime serve|start|stop|restart|status|logs
@@ -72,7 +73,7 @@ praxrail support bundle
 praxrail doctor
 ```
 
-`pxr start` accepts `--model` and `--base-url` for terminal-first model selection and OpenAI-compatible proxy routing.
+`pxr start` accepts `--model` and `--base-url` for terminal-first model selection and OpenAI-compatible proxy routing. In a TTY, successful human-mode `pxr start` opens the interactive prompt; scripts should use `--non-interactive` or `--json`. `pxr chat`, `pxr interactive`, and `pxr repl` open the prompt without starting a new engine.
 
 Safe reads and commands carrying an idempotency key may retry bounded transient
 failures. Non-idempotent mutations are never retried automatically. Watch and
@@ -89,6 +90,11 @@ $ pxr --json status
 
 $ pxr task publish PXR-0001 --reason "review passed"
 This command requires --yes after reviewing the target and reason
+
+$ pxr chat --project project-1 --repository repo-1
+Praxrail interactive mode. Type /help for commands, /exit to leave.
+pxr> Build a status dashboard
+PXR-0002  INBOX  Build a status dashboard
 
 $ pxr --json unknown
 {"error":"USAGE_ERROR","message":"Unknown command. Run pxr --help.","exitCode":2}

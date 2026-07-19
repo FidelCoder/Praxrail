@@ -32,7 +32,7 @@ approvals, clarifications, and concise remote actions.
 Start with the [installation guide](docs/product/installation.md),
 [quickstart](docs/product/quickstart.md), [terminal workflows](docs/product/terminal-workflows.md),
 [communications guide](docs/product/communications.md), [hosted control-plane guide](docs/product/hosted-control-plane.md), and
-[upgrade/support guide](docs/product/upgrades-and-support.md). Install the terminal package with `npm install -g praxrail`, then use `pxr start --model <model> --base-url <url>`, `pxr ask "..."`, and `pxr stop` for the shell-first workflow. During source development, run `pnpm cli -- version` to exercise the CLI entry point.
+[upgrade/support guide](docs/product/upgrades-and-support.md). Install the terminal package with `npm install -g praxrail`, then use `pxr start --model <model> --base-url <url>` to start the engine and open the interactive prompt. Type plain task requests directly, use slash commands such as `/tasks` and `/exit`, and stop the engine with `pxr stop`. `pxr ask "..."` remains available for scripts. During source development, run `pnpm cli -- version` to exercise the CLI entry point.
 
 ## Local Development
 

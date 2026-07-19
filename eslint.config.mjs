@@ -4,9 +4,11 @@ import tseslint from 'typescript-eslint';
 export default tseslint.config(
   {
     ignores: [
+      '.praxrail/**',
       'coverage/**',
       'dist/**',
       'packages/*/dist/**',
+      'packages/cli/runtime/**',
       'node_modules/**',
     ],
   },

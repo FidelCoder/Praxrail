@@ -26,6 +26,8 @@ export interface CliIo {
 type ProfileStoreLike = Pick<ProfileStore, 'get' | 'list' | 'use'> &
   Partial<Pick<ProfileStore, 'save' | 'remove'>>;
 
+type InteractiveLines = AsyncIterable<string> | Iterable<string>;
+
 export interface CliDependencies {
   createProfileStore?: () => ProfileStoreLike;
   createClient?: (
@@ -39,6 +41,7 @@ export interface CliDependencies {
   spawnForeground?: typeof spawnForeground;
   spawnShell?: typeof spawnShell;
   runtimeEntry?: () => string;
+  interactiveLines?: InteractiveLines;
 }
 
 class CliUsageError extends Error {}
@@ -95,18 +98,21 @@ function exitCode(error: unknown): number {
   return 1;
 }
 
-const VERSION = '0.3.5';
+const VERSION = '0.3.6';
 const help = `Praxrail ${VERSION}
 
 Usage: pxr [--profile NAME] [--json] <command>
 
 Commands:
   version                    Print the CLI version
-  start                      Start the local engine and select a model
+  start                      Start the engine, select a model, and open the prompt in a TTY
   stop                       Stop the local engine
   restart                    Restart the local engine
   status                     Query local engine status
   logs                       Print local engine logs
+  chat                       Open an interactive Praxrail prompt
+  interactive                 Alias for chat
+  repl                        Alias for chat
   ask REQUEST                Create a coding task from terminal text
   command REQUEST            Alias for ask
   watch TASK                 Follow task events
@@ -150,6 +156,13 @@ Global flags:
   --follow                   Follow a durable event or output cursor
   --version                  Print the CLI version
   --help                     Show this help
+
+Interactive mode:
+  In a real terminal, pxr start starts the engine and opens the prompt.
+  Run pxr or pxr chat --project <id> --repository <id> to open it later.
+  Plain text creates a task. Slash commands include /help, /status, /tasks,
+  /use <project-id> <repository-id>, /project <id>, /repo <id>, and /exit.
+  Use pxr start --non-interactive or pxr start --json for scripts.
 `;
 
 function runtimeEntry(): string {
@@ -314,6 +327,171 @@ function defaultTaskTitle(request: string): string {
     : title || 'Terminal command';
 }
 
+const minimumNode = { major: 22, minor: 12 };
+
+function assertSupportedRuntimeNode(): void {
+  const [major = 0, minor = 0] = process.versions.node
+    .split('.')
+    .map((part) => Number(part));
+  if (
+    major > minimumNode.major ||
+    (major === minimumNode.major && minor >= minimumNode.minor)
+  ) {
+    return;
+  }
+  throw new CliUsageError(
+    `Praxrail runtime requires Node.js ${minimumNode.major}.${minimumNode.minor}+; current Node is ${process.versions.node}. Upgrade Node or run with: npx -y -p node@22 -p praxrail@latest pxr ...`,
+  );
+}
+
+const interactiveHelp = `Interactive Praxrail commands:
+  /help                         Show this help
+  /status                       Show runtime status
+  /tasks                        List current tasks
+  /use <project-id> <repo-id>    Set project and repository defaults
+  /project <project-id>          Set the default project
+  /repo <repo-id>                Set the default repository
+  /exit                         Leave the prompt
+
+Plain text creates a coding task using the current project/repository defaults.
+Start with: pxr chat --project <project-id> --repository <repository-id>
+`;
+
+function recordText(value: Record<string, unknown>, key: string): string {
+  const field = value[key];
+  return typeof field === 'string' ? field : '';
+}
+
+function interactiveTaskHuman(task: unknown): string {
+  if (!task || typeof task !== 'object') return 'Task queued';
+  const record = task as Record<string, unknown>;
+  const key = recordText(record, 'taskKey') || recordText(record, 'id');
+  const status = recordText(record, 'status');
+  const title = recordText(record, 'title');
+  return [key, status, title].filter(Boolean).join('  ') || 'Task queued';
+}
+
+async function* promptInteractiveLines(io: CliIo): AsyncGenerator<string> {
+  const { createInterface } = await import('node:readline/promises');
+  const readline = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  try {
+    for (;;) {
+      try {
+        yield await readline.question('pxr> ');
+      } catch {
+        io.stdout.write('\n');
+        return;
+      }
+    }
+  } finally {
+    readline.close();
+  }
+}
+
+async function runInteractiveSession(input: {
+  client: PraxrailClient;
+  io: CliIo;
+  options: {
+    project?: string | undefined;
+    repository?: string | undefined;
+    'dry-run'?: boolean | undefined;
+  };
+  lines?: InteractiveLines | undefined;
+}): Promise<number> {
+  let project = input.options.project;
+  let repository = input.options.repository;
+  const lines = input.lines ?? promptInteractiveLines(input.io);
+  input.io.stdout.write(
+    'Praxrail interactive mode. Type /help for commands, /exit to leave.\n',
+  );
+  for await (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (
+      line === '/exit' ||
+      line === '/quit' ||
+      line === 'exit' ||
+      line === 'quit'
+    ) {
+      input.io.stdout.write('Leaving Praxrail interactive mode.\n');
+      return 0;
+    }
+    if (line === '/help' || line === 'help') {
+      input.io.stdout.write(interactiveHelp);
+      continue;
+    }
+    if (line.startsWith('/use ')) {
+      const [, nextProject, nextRepository] = line.split(/\s+/, 3);
+      if (!nextProject || !nextRepository) {
+        input.io.stderr.write('Usage: /use <project-id> <repository-id>\n');
+        continue;
+      }
+      project = nextProject;
+      repository = nextRepository;
+      input.io.stdout.write(
+        `Using project ${project} and repository ${repository}.\n`,
+      );
+      continue;
+    }
+    if (line.startsWith('/project ')) {
+      project = line.slice('/project '.length).trim();
+      input.io.stdout.write(`Using project ${project}.\n`);
+      continue;
+    }
+    if (line.startsWith('/repo ') || line.startsWith('/repository ')) {
+      repository = line.replace(/^\/(?:repo|repository)\s+/, '').trim();
+      input.io.stdout.write(`Using repository ${repository}.\n`);
+      continue;
+    }
+    if (line === '/status') {
+      const status = await input.client.runtimeStatus();
+      input.io.stdout.write(
+        `Runtime ${status.status.toLowerCase()} (${status.mode}).\n`,
+      );
+      continue;
+    }
+    if (line === '/tasks') {
+      const tasks = await input.client.listTaskDetails({
+        ...(project ? { projectId: project } : {}),
+        ...(repository ? { repositoryId: repository } : {}),
+        limit: 20,
+        includeArchived: false,
+      });
+      if (tasks.length === 0) input.io.stdout.write('No matching tasks.\n');
+      else {
+        for (const task of tasks) {
+          input.io.stdout.write(`${interactiveTaskHuman(task)}\n`);
+        }
+      }
+      continue;
+    }
+    if (line.startsWith('/')) {
+      input.io.stderr.write(
+        `Unknown interactive command: ${line}. Type /help.\n`,
+      );
+      continue;
+    }
+    if (!project || !repository) {
+      input.io.stderr.write(
+        'Set project and repository first: /use <project-id> <repository-id> or start with --project and --repository.\n',
+      );
+      continue;
+    }
+    const task = await input.client.createTask({
+      title: defaultTaskTitle(line),
+      request: line,
+      projectId: project,
+      repositoryId: repository,
+      dryRun: input.options['dry-run'],
+    });
+    input.io.stdout.write(`${interactiveTaskHuman(task)}\n`);
+  }
+  return 0;
+}
+
 export async function runCli(
   argv: string[],
   io: CliIo = { stdout: process.stdout, stderr: process.stderr },
@@ -387,11 +565,24 @@ export async function runCli(
       else if (!quiet) io.stdout.write(`${human}\n`);
     };
     let [command, action, argument, ...extra] = parsed.positionals;
+    if (
+      !command &&
+      !options.help &&
+      !options.version &&
+      !options.json &&
+      !options['non-interactive'] &&
+      process.stdin.isTTY &&
+      process.stdout.isTTY
+    ) {
+      command = 'chat';
+    }
     if (command && lifecycleAliases.has(command)) {
       action = command;
       command = 'runtime';
     } else if (command === 'health') {
       command = 'doctor';
+    } else if (command === 'interactive' || command === 'repl') {
+      command = 'chat';
     } else if (command === 'tasks') {
       command = 'task';
       action = 'list';
@@ -474,6 +665,7 @@ export async function runCli(
     const paths = (dependencies.runtimePaths ?? runtimePaths)();
     if (command === 'runtime') {
       if (action === 'serve') {
+        assertSupportedRuntimeNode();
         const child = (dependencies.spawnForeground ?? spawnForeground)(
           (dependencies.runtimeEntry ?? runtimeEntry)(),
           paths.pidFile,
@@ -481,6 +673,7 @@ export async function runCli(
         return await child;
       }
       if (action === 'start' || action === 'restart') {
+        assertSupportedRuntimeNode();
         const store = createStore();
         if (!store.save) throw new Error('Profile storage is unavailable');
         if (action === 'restart') {
@@ -503,19 +696,41 @@ export async function runCli(
           },
           true,
         );
-        print(
-          {
-            running: true,
-            pid,
-            profile: context.profile,
-            endpoint: context.endpoint,
-            model: context.model ?? null,
-          },
-          `Praxrail engine ${action === 'restart' ? 'restarted' : 'started'} as PID ${pid}${
-            context.model ? ` using ${context.model}` : ''
-          }`,
-        );
-        return 0;
+        const started = {
+          running: true,
+          pid,
+          profile: context.profile,
+          endpoint: context.endpoint,
+          model: context.model ?? null,
+        };
+        const startedHuman = `Praxrail engine ${
+          action === 'restart' ? 'restarted' : 'started'
+        } as PID ${pid}${context.model ? ` using ${context.model}` : ''}`;
+        print(started, startedHuman);
+        const shouldOpenInteractive =
+          !json &&
+          !quiet &&
+          !options['non-interactive'] &&
+          (dependencies.interactiveLines !== undefined ||
+            (process.stdin.isTTY && process.stdout.isTTY));
+        if (!shouldOpenInteractive) return 0;
+        const timeoutMs = timeoutValue(options.timeout);
+        const createClient =
+          dependencies.createClient ??
+          ((clientOptions: PraxrailClientOptions) =>
+            new PraxrailClient(clientOptions));
+        const client = createClient({
+          endpoint: context.endpoint,
+          token: context.token,
+          allowInsecureRemote: false,
+          ...(timeoutMs === undefined ? {} : { timeoutMs }),
+        }) as PraxrailClient;
+        return await runInteractiveSession({
+          client,
+          io,
+          options,
+          lines: dependencies.interactiveLines,
+        });
       }
       if (action === 'stop') {
         const stopped = await (
@@ -587,6 +802,27 @@ export async function runCli(
         print({ current: argument }, `Using profile ${argument}`);
         return 0;
       }
+    }
+    if (command === 'chat') {
+      if (json) {
+        throw new CliUsageError('Interactive mode does not support --json');
+      }
+      const store = createStore();
+      const profile = await store.get(options.profile);
+      const timeoutMs = timeoutValue(options.timeout);
+      const createClient =
+        dependencies.createClient ??
+        ((options: PraxrailClientOptions) => new PraxrailClient(options));
+      const client = createClient({
+        ...profile,
+        ...(timeoutMs === undefined ? {} : { timeoutMs }),
+      }) as PraxrailClient;
+      return await runInteractiveSession({
+        client,
+        io,
+        options,
+        lines: dependencies.interactiveLines,
+      });
     }
     if (
       ![

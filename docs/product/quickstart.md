@@ -25,6 +25,20 @@ repository must pass inspection and owner approval before Praxrail writes to it.
 3. Create and watch a task.
 
 ```bash
+pxr chat --project <project-id> --repository <repository-id>
+```
+
+Inside the prompt:
+
+```text
+pxr> Make validation deterministic
+pxr> /tasks
+pxr> /exit
+```
+
+Scripted flows can still use the stable command form:
+
+```bash
 praxrail task create --project <project-id> --repository <repository-id> \
   --title "Improve validation" --request "Make validation deterministic"
 praxrail task watch PXR-0001 --follow

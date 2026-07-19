@@ -17,8 +17,14 @@ Run `pxr start` from a directory containing your Praxrail `.env`, or export the 
 
 ```bash
 pxr start --model gpt-5.5 --base-url https://share-ai.ckbdev.com
-pxr status
-pxr doctor
+```
+
+In an interactive terminal, `pxr start` starts the engine and then opens the Praxrail prompt. Use `pxr start --non-interactive` or `pxr start --json` for scripts that should only boot the engine and exit.
+
+```text
+pxr> Build the requested change
+pxr> /tasks
+pxr> /exit
 ```
 
 Current 0.3.x releases run a local/remote Praxrail runtime and require a durable runtime database. The existing compatibility runtime uses PostgreSQL via `DATABASE_URL`; the product roadmap moves shared hosted control-plane state to MongoDB/Atlas so end users do not need to manage local database credentials.
@@ -37,6 +43,7 @@ Builder and reviewer keys must be distinct by policy. Use `--api-key-env` and `-
 ## Daily terminal commands
 
 ```bash
+pxr chat --project <project-id> --repository <repository-id>
 pxr ask "Build the requested change" --project <project-id> --repository <repository-id>
 pxr tasks
 pxr watch <task-id>
@@ -44,6 +51,8 @@ pxr output <task-id>
 pxr shell <task-id>
 pxr stop
 ```
+
+`pxr chat`, `pxr interactive`, and `pxr repl` keep a prompt open so active developers can type naturally. `pxr ask "..."` remains the single-command form for scripts and quick one-offs.
 
 Email and Telegram are for notifications and bounded remote actions. Active development stays in the terminal.
 

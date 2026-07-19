@@ -217,14 +217,14 @@ describe('product packages', () => {
       stderr: { write: (value: string) => (stderr += value) },
     };
     expect(await runCli(['--json', 'version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.3.5' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.6' });
     stdout = '';
     expect(await runCli(['unknown'], io)).toBe(2);
     expect(stderr).toContain('Unknown command');
     stdout = '';
     stderr = '';
     expect(await runCli(['--json', '--version'], io)).toBe(0);
-    expect(JSON.parse(stdout)).toEqual({ version: '0.3.5' });
+    expect(JSON.parse(stdout)).toEqual({ version: '0.3.6' });
 
     stdout = '';
     stderr = '';
@@ -457,6 +457,111 @@ describe('product packages', () => {
         process.env.REVIEWER_TEST_KEY = previous.REVIEWER_TEST_KEY;
       }
     }
+  });
+
+  it('opens an interactive terminal session for natural task commands', async () => {
+    let stdout = '';
+    let stderr = '';
+    const io = {
+      stdout: { write: (value: string) => (stdout += value) },
+      stderr: { write: (value: string) => (stderr += value) },
+    };
+    const now = '2026-07-18T10:00:00.000Z';
+    const created: {
+      title: string;
+      request: string;
+      projectId: string;
+      repositoryId: string;
+      dryRun?: boolean | undefined;
+    }[] = [];
+    const taskFixture = (index: number, title: string) => ({
+      id: `${index}${index}${index}${index}${index}${index}${index}${index}-${index}${index}${index}${index}-4${index}${index}${index}-8${index}${index}${index}-${index}${index}${index}${index}${index}${index}${index}${index}${index}${index}${index}${index}`,
+      taskKey: `PXR-${index}`,
+      projectId: 'project-1',
+      repositoryId: 'repo-1',
+      title,
+      problem: title,
+      desiredOutcome: title,
+      status: 'INBOX' as const,
+      priority: 50,
+      risk: null,
+      contract: null,
+      version: 1,
+      paused: false,
+      blockedReason: null,
+      budgetUsd: null,
+      spentUsd: 0,
+      currentAttempt: 0,
+      maximumAttempts: 3,
+      archivedAt: null,
+      requiredAction: 'Clarify and refine the task contract',
+      createdAt: now,
+      updatedAt: now,
+    });
+    expect(
+      await runCli(
+        ['chat', '--project', 'project-1', '--repository', 'repo-1'],
+        io,
+        {
+          interactiveLines: [
+            '/status',
+            '/tasks',
+            'Build a status dashboard',
+            '/use project-2 repo-2',
+            'Add tests',
+            '/exit',
+          ],
+          createProfileStore: () => ({
+            get: async () => ({
+              endpoint: 'unix:///tmp/pxr-state/runtime.sock',
+              token,
+              allowInsecureRemote: false,
+            }),
+            list: async () => ({ current: 'local', profiles: {} }),
+            use: async () => undefined,
+          }),
+          createClient: () => ({
+            runtimeStatus: async () => ({
+              apiVersion: 'v1' as const,
+              runtimeVersion: '0.3.0',
+              status: 'READY' as const,
+              database: true,
+              queue: true,
+              mode: 'LOCAL' as const,
+            }),
+            listTaskDetails: async () => [taskFixture(9, 'Existing task')],
+            createTask: async (input) => {
+              created.push(input);
+              return taskFixture(created.length, input.title);
+            },
+          }),
+        },
+      ),
+    ).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout).toContain('Praxrail interactive mode');
+    expect(stdout).toContain('Runtime ready (LOCAL).');
+    expect(stdout).toContain('PXR-9  INBOX  Existing task');
+    expect(stdout).toContain('PXR-1  INBOX  Build a status dashboard');
+    expect(stdout).toContain('Using project project-2 and repository repo-2.');
+    expect(stdout).toContain('PXR-2  INBOX  Add tests');
+    expect(stdout).toContain('Leaving Praxrail interactive mode.');
+    expect(created).toEqual([
+      {
+        title: 'Build a status dashboard',
+        request: 'Build a status dashboard',
+        projectId: 'project-1',
+        repositoryId: 'repo-1',
+        dryRun: false,
+      },
+      {
+        title: 'Add tests',
+        request: 'Add tests',
+        projectId: 'project-2',
+        repositoryId: 'repo-2',
+        dryRun: false,
+      },
+    ]);
   });
 
   it('dispatches stable product commands and confirms high-risk actions', async () => {

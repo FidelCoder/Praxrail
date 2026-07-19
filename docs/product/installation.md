@@ -19,12 +19,19 @@ Start the local engine from a directory containing your Praxrail `.env`, or from
 
 ```bash
 pxr start --model <model> --base-url https://share-ai.ckbdev.com
-pxr status
-pxr ask "Build the requested change" --project <project-id> --repository <repository-id>
-pxr stop
 ```
 
-`pxr start` creates and selects a local Unix-socket profile automatically. When model access is enabled, the current security policy requires distinct `CODEX_BUILDER_API_KEY` and `CODEX_REVIEWER_API_KEY` values. Set `CODEX_BASE_URL`/`OPENAI_BASE_URL`, or pass `--base-url`, when using an OpenAI-compatible proxy. Use `--api-key-env` and `--review-api-key-env` when your shell stores keys under custom names.
+In an interactive terminal, `pxr start` creates and selects a local Unix-socket profile, starts the engine, and opens the Praxrail prompt:
+
+```text
+pxr> Build the requested change
+pxr> /tasks
+pxr> /exit
+```
+
+Use `pxr start --non-interactive` or `pxr start --json` when automation should start the engine and return immediately. You can also open the prompt later with `pxr chat --project <project-id> --repository <repository-id>` or submit a single task with `pxr ask "Build the requested change" --project <project-id> --repository <repository-id>`.
+
+When model access is enabled, the current security policy requires distinct `CODEX_BUILDER_API_KEY` and `CODEX_REVIEWER_API_KEY` values. Set `CODEX_BASE_URL`/`OPENAI_BASE_URL`, or pass `--base-url`, when using an OpenAI-compatible proxy. Use `--api-key-env` and `--review-api-key-env` when your shell stores keys under custom names.
 
 ## From Source
 

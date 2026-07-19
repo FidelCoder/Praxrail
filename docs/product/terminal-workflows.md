@@ -1,8 +1,9 @@
 # Terminal Workflows
 
 The terminal is the complete operational interface for active developers.
-Scripts should prefer `--json`, stable exit codes, and explicit `--yes` for
-high-risk commands.
+`pxr start` opens an interactive prompt in a real terminal after the engine boots; `pxr chat`, `pxr interactive`, and `pxr repl` open the same prompt later. Plain text in the prompt creates coding tasks, while slash commands such as `/status`, `/tasks`, `/use <project-id> <repository-id>`, and `/exit` control the session.
+
+Scripts should prefer `--json`, `--non-interactive`, stable exit codes, and explicit `--yes` for high-risk commands.
 
 ## Projects And Repositories
 

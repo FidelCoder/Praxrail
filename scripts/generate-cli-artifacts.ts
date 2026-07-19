@@ -60,6 +60,9 @@ const rootCommands = [
   'restart',
   'status',
   'logs',
+  'chat',
+  'interactive',
+  'repl',
   'ask',
   'command',
   'cmd',
@@ -124,7 +127,7 @@ _praxrail "$@"
 const groupReference = Object.entries(groups)
   .map(([group, actions]) => `.TP\n.B ${group}\n${actions.join(', ')}`)
   .join('\n');
-const manual = `.TH PRAXRAIL 1 "2026-07-18" "Praxrail 0.3.5" "Praxrail Manual"
+const manual = `.TH PRAXRAIL 1 "2026-07-18" "Praxrail 0.3.6" "Praxrail Manual"
 .SH NAME
 pxr - terminal client for the Praxrail autonomous coding runtime
 .SH SYNOPSIS

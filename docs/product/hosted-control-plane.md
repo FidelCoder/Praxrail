@@ -7,12 +7,25 @@ Praxrail should not ask normal hosted users to maintain an online `.env` file. H
 ```bash
 npm install -g praxrail
 pxr login
-pxr model use openai-compatible --model gpt-5.5
-pxr start
-pxr ask "Build the requested change" --project <project-id> --repository <repository-id>
+pxr start --model gpt-5.5
+# Praxrail opens pxr> in an interactive terminal
+pxr> Build the requested change
+pxr> /tasks
+pxr> /exit
 ```
 
-The CLI stores only a runtime/profile token locally. Provider API keys, Telegram secrets, GitHub credentials, repository policy, billing state, and task state stay in the hosted control plane.
+`pxr ask "..."` remains available for scripts and one-off task creation. The CLI stores only a runtime/profile token locally. Provider API keys, Telegram secrets, GitHub credentials, repository policy, billing state, and task state stay in the hosted control plane.
+
+## Recommended Hosting Shape
+
+Npm is the distribution channel for the `pxr` library; it is not where Praxrail runs. The first hosted Praxrail deployment should use:
+
+- a persistent Docker/container runtime for the API, scheduler, queue workers, repository workspaces, and agent loops;
+- MongoDB Atlas for hosted control-plane state;
+- the host provider secret manager plus Praxrail's own encrypted tenant/project secret records for model-provider keys and integration credentials; and
+- optional Vercel deployment only for documentation, marketing, dashboard, login, or a thin HTTP facade.
+
+Preferred first host: Fly.io Machines for the long-running control plane and workers, backed by MongoDB Atlas. Railway, Render, AWS ECS/Fargate, GCP Cloud Run jobs/services, or DigitalOcean Apps can also work if they provide persistent process execution, private networking, secrets, logs, and controlled worker scaling.
 
 ## Secret Ownership
 
