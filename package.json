@@ -38,7 +38,7 @@
   "dependencies": {
     "@octokit/app": "^16.1.2",
     "@octokit/webhooks": "^14.2.0",
-    "@openai/codex-sdk": "^0.144.5",
+    "@openai/codex-sdk": "^0.145.0",
     "croner": "^10.0.1",
     "execa": "^9.6.1",
     "fastify": "^5.10.0",
